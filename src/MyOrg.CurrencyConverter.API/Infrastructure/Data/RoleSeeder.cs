@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Identity;
 using Serilog;
 
-namespace MyOrg.CurrencyConverter.API.Data;
+namespace MyOrg.CurrencyConverter.API.Infrastructure.Data;
 
 /// <summary>
 /// Role constants for the application

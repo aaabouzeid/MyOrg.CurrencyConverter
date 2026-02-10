@@ -1,9 +1,9 @@
 using Microsoft.Extensions.Options;
+using MyOrg.CurrencyConverter.API.Core.Configuration;
 using MyOrg.CurrencyConverter.API.Core.Enums;
 using MyOrg.CurrencyConverter.API.Core.Interfaces;
-using MyOrg.CurrencyConverter.API.Core.Models;
 
-namespace MyOrg.CurrencyConverter.API.Infrastructure;
+namespace MyOrg.CurrencyConverter.API.Infrastructure.Factories;
 
 /// <summary>
 /// Factory for creating currency provider instances based on configuration

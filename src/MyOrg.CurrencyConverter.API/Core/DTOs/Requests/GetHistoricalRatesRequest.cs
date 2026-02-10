@@ -1,4 +1,4 @@
-namespace MyOrg.CurrencyConverter.API.Core.Models.Requests
+namespace MyOrg.CurrencyConverter.API.Core.DTOs.Requests
 {
     public class GetHistoricalRatesRequest
     {

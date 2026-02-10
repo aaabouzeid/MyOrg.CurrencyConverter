@@ -2,8 +2,8 @@ using FluentAssertions;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Moq;
-using MyOrg.CurrencyConverter.API.Core.Models;
-using MyOrg.CurrencyConverter.API.Infrastructure;
+using MyOrg.CurrencyConverter.API.Core.Configuration;
+using MyOrg.CurrencyConverter.API.Infrastructure.Caching;
 using StackExchange.Redis;
 
 namespace MyOrg.CurrencyConverter.UnitTests.Infrastructure;

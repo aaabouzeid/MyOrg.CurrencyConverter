@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
-using MyOrg.CurrencyConverter.API.Data;
+using MyOrg.CurrencyConverter.API.Infrastructure.Data;
 
 namespace MyOrg.CurrencyConverter.API.Controllers;
 

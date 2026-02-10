@@ -1,9 +1,9 @@
 using FluentValidation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using MyOrg.CurrencyConverter.API.Core.DTOs.Requests;
+using MyOrg.CurrencyConverter.API.Core.DTOs.Responses;
 using MyOrg.CurrencyConverter.API.Core.Models;
-using MyOrg.CurrencyConverter.API.Core.Models.Requests;
-using MyOrg.CurrencyConverter.API.Core.Models.Responses;
 using MyOrg.CurrencyConverter.API.Services;
 
 namespace MyOrg.CurrencyConverter.API.Controllers

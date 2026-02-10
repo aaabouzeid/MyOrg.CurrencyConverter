@@ -1,4 +1,6 @@
-namespace MyOrg.CurrencyConverter.API.Core.Models.Responses;
+using MyOrg.CurrencyConverter.API.Core.Models;
+
+namespace MyOrg.CurrencyConverter.API.Core.DTOs.Responses;
 
 /// <summary>
 /// Paginated response for historical exchange rates

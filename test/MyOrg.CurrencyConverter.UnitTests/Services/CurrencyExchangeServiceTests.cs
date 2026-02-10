@@ -1,10 +1,9 @@
 using FluentAssertions;
 using FluentValidation;
 using Moq;
+using MyOrg.CurrencyConverter.API.Core.DTOs.Requests;
 using MyOrg.CurrencyConverter.API.Core.Interfaces;
 using MyOrg.CurrencyConverter.API.Core.Models;
-using MyOrg.CurrencyConverter.API.Core.Models.Requests;
-using MyOrg.CurrencyConverter.API.Core.Models.Responses;
 using MyOrg.CurrencyConverter.API.Core.Validators;
 using MyOrg.CurrencyConverter.API.Services;
 

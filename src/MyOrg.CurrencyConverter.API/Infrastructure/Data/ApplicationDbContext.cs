@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 
-namespace MyOrg.CurrencyConverter.API.Data;
+namespace MyOrg.CurrencyConverter.API.Infrastructure.Data;
 
 /// <summary>
 /// Database context for Identity with ApplicationUser

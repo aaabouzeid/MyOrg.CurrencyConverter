@@ -86,6 +86,11 @@ services:
       - ResiliencePolicies__CircuitBreakerPolicy__HandledEventsAllowedBeforeBreaking=5
       - ResiliencePolicies__CircuitBreakerPolicy__DurationOfBreakInSeconds=30
 
+      # Rate Limiting
+      - RateLimiting__Enabled=true
+      - RateLimiting__PermitLimit=100
+      - RateLimiting__WindowSeconds=60
+
       # Logging
       - ASPNETCORE_ENVIRONMENT=Development
       - Logging__LogLevel__Default=Information

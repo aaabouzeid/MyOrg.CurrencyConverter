@@ -3,10 +3,11 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Moq;
+using MyOrg.CurrencyConverter.API.Core.Configuration;
 using MyOrg.CurrencyConverter.API.Core.Enums;
 using MyOrg.CurrencyConverter.API.Core.Interfaces;
-using MyOrg.CurrencyConverter.API.Core.Models;
 using MyOrg.CurrencyConverter.API.Infrastructure;
+using MyOrg.CurrencyConverter.API.Infrastructure.Factories;
 
 namespace MyOrg.CurrencyConverter.UnitTests.Infrastructure;
 

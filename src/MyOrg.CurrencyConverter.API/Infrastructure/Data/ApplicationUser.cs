@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Identity;
 
-namespace MyOrg.CurrencyConverter.API.Data;
+namespace MyOrg.CurrencyConverter.API.Infrastructure.Data;
 
 /// <summary>
 /// Application user entity extending IdentityUser

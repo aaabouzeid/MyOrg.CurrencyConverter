@@ -1,5 +1,5 @@
 using FluentValidation;
-using MyOrg.CurrencyConverter.API.Core.Models.Requests;
+using MyOrg.CurrencyConverter.API.Core.DTOs.Requests;
 
 namespace MyOrg.CurrencyConverter.API.Core.Validators
 {

@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Options;
+using MyOrg.CurrencyConverter.API.Core.Configuration;
 using MyOrg.CurrencyConverter.API.Core.Interfaces;
 using MyOrg.CurrencyConverter.API.Core.Models;
 

@@ -1,6 +1,6 @@
 using MyOrg.CurrencyConverter.API.Core.Enums;
 
-namespace MyOrg.CurrencyConverter.API.Core.Models;
+namespace MyOrg.CurrencyConverter.API.Core.Configuration;
 
 /// <summary>
 /// Configuration settings for currency providers

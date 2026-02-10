@@ -1,4 +1,4 @@
-namespace MyOrg.CurrencyConverter.API.Core.Models
+namespace MyOrg.CurrencyConverter.API.Core.DTOs.Responses
 {
     public class ConversionResult
     {

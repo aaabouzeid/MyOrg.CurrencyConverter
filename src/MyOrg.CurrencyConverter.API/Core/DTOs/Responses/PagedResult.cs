@@ -1,4 +1,4 @@
-namespace MyOrg.CurrencyConverter.API.Core.Models;
+namespace MyOrg.CurrencyConverter.API.Core.DTOs.Responses;
 
 /// <summary>
 /// Generic wrapper for paginated responses

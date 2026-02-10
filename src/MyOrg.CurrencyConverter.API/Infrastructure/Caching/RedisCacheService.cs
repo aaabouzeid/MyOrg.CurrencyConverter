@@ -1,10 +1,10 @@
 using System.Text.Json;
 using Microsoft.Extensions.Options;
+using MyOrg.CurrencyConverter.API.Core.Configuration;
 using MyOrg.CurrencyConverter.API.Core.Interfaces;
-using MyOrg.CurrencyConverter.API.Core.Models;
 using StackExchange.Redis;
 
-namespace MyOrg.CurrencyConverter.API.Infrastructure;
+namespace MyOrg.CurrencyConverter.API.Infrastructure.Caching;
 
 /// <summary>
 /// Redis implementation of the cache service abstraction

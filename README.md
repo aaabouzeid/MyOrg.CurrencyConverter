@@ -5,6 +5,8 @@ A production-ready Currency Converter API built with .NET 10, featuring JWT auth
 ## Features
 
 - 🔐 **JWT Authentication** - Secure API access with Microsoft Identity
+- 👥 **Role-Based Access Control** - Admin, Manager, and User roles with permissions
+- ⏱️ **API Rate Limiting** - Protect against abuse with configurable throttling
 - 💰 **Currency Conversion** - Real-time exchange rates from multiple providers
 - 🗄️ **PostgreSQL Database** - Persistent storage for users and data
 - ⚡ **Redis Caching** - High-performance caching layer

@@ -1,7 +1,9 @@
+using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi;
-using MyOrg.CurrencyConverter.API.Data;
+using MyOrg.CurrencyConverter.API.Infrastructure.Data;
 using Serilog;
 using Serilog.Events;
 
@@ -42,6 +44,9 @@ namespace MyOrg.CurrencyConverter.API
                 builder.Services.AddEndpointsApiExplorer();
                 AddSwagger(builder);
 
+                // Add Rate Limiting
+                AddRateLimiting(builder);
+
                 // Register application services with Polly resilience policies
                 ServicesProviderHelper.AddAppServices(builder.Services, builder.Configuration);
 
@@ -70,6 +75,9 @@ namespace MyOrg.CurrencyConverter.API
                 }
 
                 app.UseHttpsRedirection();
+
+                // Rate limiting must come before authentication
+                app.UseRateLimiter();
 
                 // Authentication must come before Authorization
                 app.UseAuthentication();
@@ -150,6 +158,70 @@ namespace MyOrg.CurrencyConverter.API
                         }
                     });
             });
+        }
+
+        private static void AddRateLimiting(WebApplicationBuilder builder)
+        {
+            var rateLimitConfig = builder.Configuration.GetSection("RateLimiting");
+            var rateLimitEnabled = rateLimitConfig.GetValue<bool>("Enabled", true);
+
+            if (!rateLimitEnabled)
+            {
+                Log.Information("Rate limiting is disabled");
+                return;
+            }
+
+            // Read configuration values
+            var permitLimit = rateLimitConfig.GetValue<int>("PermitLimit", 100);
+            var windowSeconds = rateLimitConfig.GetValue<int>("WindowSeconds", 60);
+
+            builder.Services.AddRateLimiter(options =>
+            {
+                // Default rejection response
+                options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+
+                options.OnRejected = async (context, cancellationToken) =>
+                {
+                    context.HttpContext.Response.StatusCode = StatusCodes.Status429TooManyRequests;
+                    context.HttpContext.Response.ContentType = "application/json";
+
+                    var retryAfter = context.Lease.TryGetMetadata(MetadataName.RetryAfter, out var retryAfterValue)
+                        ? (double?)retryAfterValue.TotalSeconds
+                        : null;
+
+                    var response = new
+                    {
+                        error = "Too many requests",
+                        message = "Rate limit exceeded. Please try again later.",
+                        retryAfter = retryAfter != null ? $"{retryAfter:F0} seconds" : "Please wait before retrying"
+                    };
+
+                    await context.HttpContext.Response.WriteAsJsonAsync(response, cancellationToken);
+
+                    Log.Warning("Rate limit exceeded for {IPAddress} on {Path}",
+                        context.HttpContext.Connection.RemoteIpAddress,
+                        context.HttpContext.Request.Path);
+                };
+
+                // Global fixed window limiter (applied to all requests)
+                options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(context =>
+                {
+                    var ipAddress = context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+
+                    return RateLimitPartition.GetFixedWindowLimiter(
+                        partitionKey: ipAddress,
+                        factory: _ => new FixedWindowRateLimiterOptions
+                        {
+                            PermitLimit = permitLimit,
+                            Window = TimeSpan.FromSeconds(windowSeconds),
+                            QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                            QueueLimit = 0
+                        });
+                });
+            });
+
+            Log.Information("Rate limiting enabled: {PermitLimit} requests per {WindowSeconds} seconds per IP address",
+                permitLimit, windowSeconds);
         }
     }
 }

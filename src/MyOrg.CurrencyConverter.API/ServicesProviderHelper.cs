@@ -1,7 +1,11 @@
 ﻿using FluentValidation;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using MyOrg.CurrencyConverter.API.Data;
+using MyOrg.CurrencyConverter.API.Core.Configuration;
+using MyOrg.CurrencyConverter.API.Core.DTOs.Requests;
+using MyOrg.CurrencyConverter.API.Infrastructure.Caching;
+using MyOrg.CurrencyConverter.API.Infrastructure.Data;
+using MyOrg.CurrencyConverter.API.Infrastructure.Factories;
 using Polly;
 using Polly.Extensions.Http;
 using StackExchange.Redis;
@@ -51,19 +55,19 @@ namespace MyOrg.CurrencyConverter.API
                 .AddPolicy("UserOrAbove", policy => policy.RequireRole("User", "Manager", "Admin"));
 
             // Configure JWT settings (keeping for reference, but Identity handles tokens)
-            services.Configure<Core.Models.JwtSettings>(configuration.GetSection("JwtSettings"));
+            services.Configure<JwtSettings>(configuration.GetSection("JwtSettings"));
 
             // Configure provider settings
-            services.Configure<Core.Models.CurrencyProviderSettings>(configuration.GetSection("CurrencyProviderSettings"));
+            services.Configure<CurrencyProviderSettings>(configuration.GetSection("CurrencyProviderSettings"));
 
             // Infrastructure - HTTP Clients for currency providers
             ConfigureHttpClients(services, configuration);
 
             // Register provider factory
-            services.AddSingleton<Core.Interfaces.ICurrencyProviderFactory, Infrastructure.CurrencyProviderFactory>();
+            services.AddSingleton<Core.Interfaces.ICurrencyProviderFactory, CurrencyProviderFactory>();
 
             // Configure cache settings
-            services.Configure<Core.Models.CacheSettings>(configuration.GetSection("Cache"));
+            services.Configure<CacheSettings>(configuration.GetSection("Cache"));
 
             // Conditional registration based on Cache:Enabled flag
             var cacheEnabled = configuration.GetValue<bool?>("Cache:Enabled") ?? false;
@@ -88,11 +92,11 @@ namespace MyOrg.CurrencyConverter.API
                 .Get<string[]>() ?? new[] { "TRY", "PLN", "THB", "MXN" };
 
             // Validators
-            services.AddTransient<IValidator<Core.Models.Requests.GetLatestRatesRequest>, Core.Validators.GetLatestRatesRequestValidator>();
-            services.AddTransient<IValidator<Core.Models.Requests.ConvertCurrencyRequest>>(sp =>
+            services.AddTransient<IValidator<GetLatestRatesRequest>, Core.Validators.GetLatestRatesRequestValidator>();
+            services.AddTransient<IValidator<ConvertCurrencyRequest>>(sp =>
                 new Core.Validators.ConvertCurrencyRequestValidator(restrictedCurrencies));
-            services.AddTransient<IValidator<Core.Models.Requests.GetExchangeRateRequest>, Core.Validators.GetExchangeRateRequestValidator>();
-            services.AddTransient<IValidator<Core.Models.Requests.GetHistoricalRatesRequest>, Core.Validators.GetHistoricalRatesRequestValidator>();
+            services.AddTransient<IValidator<GetExchangeRateRequest>, Core.Validators.GetExchangeRateRequestValidator>();
+            services.AddTransient<IValidator<GetHistoricalRatesRequest>, Core.Validators.GetHistoricalRatesRequestValidator>();
 
             // Application Services
             services.AddTransient<Services.ICurrencyExchangeService, Services.CurrencyExchangeService>();
@@ -143,7 +147,7 @@ namespace MyOrg.CurrencyConverter.API
             });
 
             // Register cache service
-            services.AddSingleton<Core.Interfaces.ICacheService, Infrastructure.RedisCacheService>();
+            services.AddSingleton<Core.Interfaces.ICacheService, RedisCacheService>();
 
             // Register decorated provider using factory
             services.AddTransient<Core.Interfaces.ICurrencyProvider>(sp =>
@@ -151,7 +155,7 @@ namespace MyOrg.CurrencyConverter.API
                 var factory = sp.GetRequiredService<Core.Interfaces.ICurrencyProviderFactory>();
                 var innerProvider = factory.CreateProvider(); // Use factory to create provider
                 var cacheService = sp.GetRequiredService<Core.Interfaces.ICacheService>();
-                var cacheSettings = sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<Core.Models.CacheSettings>>();
+                var cacheSettings = sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<CacheSettings>>();
                 var logger = sp.GetRequiredService<ILogger<Infrastructure.CachedCurrencyProvider>>();
 
                 return new Infrastructure.CachedCurrencyProvider(innerProvider, cacheService, cacheSettings, logger);
