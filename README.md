@@ -1,4 +1,4 @@
-# MyOrg.CurrencyConverter
+# Currency Converter
 
 A production-ready Currency Converter API built with .NET 10, featuring JWT authentication, PostgreSQL database, Redis caching, and comprehensive API documentation via Swagger.
 
