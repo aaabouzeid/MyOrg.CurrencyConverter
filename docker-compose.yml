@@ -1,0 +1,106 @@
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: currency-postgres
+    environment:
+      POSTGRES_DB: currencyconverter
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres_password_change_me
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - currency-network
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: currency-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - currency-network
+
+  # Currency Converter API
+  api:
+    build:
+      context: .
+      dockerfile: src/MyOrg.CurrencyConverter.API/Dockerfile
+    container_name: currency-api
+    ports:
+      - "8080:8080"
+      - "8081:8081"
+    environment:
+      # Auto-apply migrations on startup
+      - AutoMigrate=true
+
+      # Database Configuration
+      - ConnectionStrings__DefaultConnection=Host=postgres;Database=currencyconverter;Username=postgres;Password=postgres_password_change_me
+
+      # Cache Configuration
+      - Cache__Enabled=true
+      - Cache__ConnectionString=redis:6379
+      - Cache__DefaultTtlMinutes=60
+      - Cache__Ttl__LatestRatesMinutes=30
+      - Cache__Ttl__ExchangeRateMinutes=30
+      - Cache__ThrowOnFailure=false
+
+      # JWT Settings
+      - JwtSettings__SecretKey=ThisIsAVerySecretKeyForJwtTokenGeneration!MustBeAtLeast32Characters
+      - JwtSettings__Issuer=CurrencyConverter.API
+      - JwtSettings__Audience=CurrencyConverter.Clients
+      - JwtSettings__ExpirationMinutes=60
+      - JwtSettings__RefreshTokenExpirationDays=7
+
+      # Currency Provider Settings
+      - CurrencyProviderSettings__ActiveProvider=Frankfurter
+      - CurrencyProviderSettings__Frankfurter__BaseUrl=https://api.frankfurter.app
+
+      # Currency Restrictions
+      - CurrencyRestrictions__RestrictedCurrencies__0=TRY
+      - CurrencyRestrictions__RestrictedCurrencies__1=PLN
+      - CurrencyRestrictions__RestrictedCurrencies__2=THB
+      - CurrencyRestrictions__RestrictedCurrencies__3=MXN
+
+      # Resilience Policies
+      - ResiliencePolicies__RetryPolicy__RetryCount=3
+      - ResiliencePolicies__CircuitBreakerPolicy__HandledEventsAllowedBeforeBreaking=5
+      - ResiliencePolicies__CircuitBreakerPolicy__DurationOfBreakInSeconds=30
+
+      # Logging
+      - ASPNETCORE_ENVIRONMENT=Development
+      - Logging__LogLevel__Default=Information
+      - Logging__LogLevel__Microsoft.AspNetCore=Warning
+
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - currency-network
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+
+networks:
+  currency-network:
+    driver: bridge

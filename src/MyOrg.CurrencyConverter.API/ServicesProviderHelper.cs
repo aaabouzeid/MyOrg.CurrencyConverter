@@ -1,4 +1,7 @@
 ﻿using FluentValidation;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
+using MyOrg.CurrencyConverter.API.Data;
 using Polly;
 using Polly.Extensions.Http;
 using StackExchange.Redis;
@@ -9,6 +12,41 @@ namespace MyOrg.CurrencyConverter.API
     {
         public static IServiceCollection AddAppServices(IServiceCollection services, IConfiguration configuration)
         {
+            // Configure Database (PostgreSQL)
+            var connectionString = configuration.GetConnectionString("DefaultConnection")
+                ?? throw new InvalidOperationException("Database connection string 'DefaultConnection' is required");
+
+            services.AddDbContext<ApplicationDbContext>(options =>
+                options.UseNpgsql(connectionString));
+
+            // Configure Identity with Cookie and JWT Bearer authentication
+            services.AddAuthentication(options =>
+            {
+                options.DefaultAuthenticateScheme = IdentityConstants.BearerScheme;
+                options.DefaultChallengeScheme = IdentityConstants.BearerScheme;
+            })
+            .AddBearerToken(IdentityConstants.BearerScheme);
+
+            services.AddAuthorizationBuilder();
+
+            services.AddIdentityCore<ApplicationUser>(options =>
+            {
+                // Password settings
+                options.Password.RequireDigit = true;
+                options.Password.RequireLowercase = true;
+                options.Password.RequireUppercase = true;
+                options.Password.RequireNonAlphanumeric = true;
+                options.Password.RequiredLength = 8;
+
+                // User settings
+                options.User.RequireUniqueEmail = true;
+            })
+            .AddEntityFrameworkStores<ApplicationDbContext>()
+            .AddApiEndpoints(); // Adds Identity API endpoints
+
+            // Configure JWT settings (keeping for reference, but Identity handles tokens)
+            services.Configure<Core.Models.JwtSettings>(configuration.GetSection("JwtSettings"));
+
             // Configure provider settings
             services.Configure<Core.Models.CurrencyProviderSettings>(configuration.GetSection("CurrencyProviderSettings"));
 

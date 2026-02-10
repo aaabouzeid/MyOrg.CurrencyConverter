@@ -1,4 +1,5 @@
 using FluentValidation;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MyOrg.CurrencyConverter.API.Core.Models;
 using MyOrg.CurrencyConverter.API.Core.Models.Requests;
@@ -10,6 +11,7 @@ namespace MyOrg.CurrencyConverter.API.Controllers
     [ApiController]
     [Route("api/[controller]")]
     [Produces("application/json")]
+    [Authorize]
     public class CurrencyController : ControllerBase
     {
         private readonly ICurrencyExchangeService _exchangeService;

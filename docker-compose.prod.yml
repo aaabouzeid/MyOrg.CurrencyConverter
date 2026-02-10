@@ -1,0 +1,146 @@
+services:
+  # PostgreSQL Database (Production)
+  postgres:
+    image: postgres:16-alpine
+    container_name: currency-postgres-prod
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-currencyconverter}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backups:/backups
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - currency-network
+    restart: always
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+
+  # Redis Cache (Production)
+  redis:
+    image: redis:7-alpine
+    container_name: currency-redis-prod
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-}
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "--no-auth-warning", "-a", "${REDIS_PASSWORD:-}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - currency-network
+    restart: always
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+
+  # Currency Converter API (Production)
+  api:
+    build:
+      context: .
+      dockerfile: src/MyOrg.CurrencyConverter.API/Dockerfile
+      args:
+        BUILD_CONFIGURATION: Release
+    container_name: currency-api-prod
+    ports:
+      - "8080:8080"
+      - "8081:8081"
+    environment:
+      # Auto-apply migrations on startup
+      - AutoMigrate=true
+
+      # Database Configuration
+      - ConnectionStrings__DefaultConnection=Host=postgres;Database=${POSTGRES_DB:-currencyconverter};Username=${POSTGRES_USER:-postgres};Password=${POSTGRES_PASSWORD}
+
+      # Cache Configuration
+      - Cache__Enabled=true
+      - Cache__ConnectionString=redis:6379,password=${REDIS_PASSWORD:-}
+      - Cache__DefaultTtlMinutes=${CACHE_DEFAULT_TTL_MINUTES:-60}
+      - Cache__Ttl__LatestRatesMinutes=${CACHE_LATEST_RATES_TTL_MINUTES:-30}
+      - Cache__Ttl__ExchangeRateMinutes=${CACHE_EXCHANGE_RATE_TTL_MINUTES:-30}
+      - Cache__ThrowOnFailure=false
+
+      # JWT Settings (Use environment variables for security)
+      - JwtSettings__SecretKey=${JWT_SECRET_KEY}
+      - JwtSettings__Issuer=${JWT_ISSUER:-CurrencyConverter.API}
+      - JwtSettings__Audience=${JWT_AUDIENCE:-CurrencyConverter.Clients}
+      - JwtSettings__ExpirationMinutes=${JWT_EXPIRATION_MINUTES:-60}
+      - JwtSettings__RefreshTokenExpirationDays=${JWT_REFRESH_TOKEN_EXPIRATION_DAYS:-7}
+
+      # Currency Provider Settings
+      - CurrencyProviderSettings__ActiveProvider=Frankfurter
+      - CurrencyProviderSettings__Frankfurter__BaseUrl=https://api.frankfurter.app
+
+      # Currency Restrictions
+      - CurrencyRestrictions__RestrictedCurrencies__0=TRY
+      - CurrencyRestrictions__RestrictedCurrencies__1=PLN
+      - CurrencyRestrictions__RestrictedCurrencies__2=THB
+      - CurrencyRestrictions__RestrictedCurrencies__3=MXN
+
+      # Resilience Policies
+      - ResiliencePolicies__RetryPolicy__RetryCount=3
+      - ResiliencePolicies__CircuitBreakerPolicy__HandledEventsAllowedBeforeBreaking=5
+      - ResiliencePolicies__CircuitBreakerPolicy__DurationOfBreakInSeconds=30
+
+      # Environment
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_URLS=http://+:8080;https://+:8081
+
+      # Logging
+      - Logging__LogLevel__Default=Information
+      - Logging__LogLevel__Microsoft.AspNetCore=Warning
+      - Logging__LogLevel__Microsoft.EntityFrameworkCore=Warning
+
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - currency-network
+    restart: always
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '1'
+          memory: 1G
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+
+networks:
+  currency-network:
+    driver: bridge
