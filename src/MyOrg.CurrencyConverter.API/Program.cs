@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.RateLimiting;
@@ -43,6 +42,9 @@ namespace MyOrg.CurrencyConverter.API
 
                 builder.Services.AddControllers();
 
+                // Add CORS
+                AddCorsPolicy(builder);
+
                 // Add Swagger/OpenAPI
                 builder.Services.AddEndpointsApiExplorer();
                 AddSwagger(builder);
@@ -81,6 +83,9 @@ namespace MyOrg.CurrencyConverter.API
                 }
 
                 app.UseHttpsRedirection();
+
+                // CORS must come before authentication and authorization
+                app.UseCors("CorsPolicy");
 
                 // Rate limiting must come before authentication
                 app.UseRateLimiter();
@@ -131,6 +136,36 @@ namespace MyOrg.CurrencyConverter.API
             {
                 Log.CloseAndFlush();
             }
+        }
+
+        private static void AddCorsPolicy(WebApplicationBuilder builder)
+        {
+            var corsConfig = builder.Configuration.GetSection("Cors");
+            var corsEnabled = corsConfig.GetValue<bool>("Enabled", true);
+
+            if (!corsEnabled)
+            {
+                Log.Information("CORS is disabled");
+                return;
+            }
+
+            // Read allowed origins from configuration
+            var allowedOrigins = corsConfig.GetSection("AllowedOrigins").Get<string[]>()
+                ?? new[] { "http://localhost:3000", "http://localhost:3001" };
+
+            builder.Services.AddCors(options =>
+            {
+                options.AddPolicy("CorsPolicy", policy =>
+                {
+                    policy.WithOrigins(allowedOrigins)
+                          .AllowAnyMethod()
+                          .AllowAnyHeader()
+                          .AllowCredentials() // Required for authentication cookies/tokens
+                          .WithExposedHeaders("Content-Disposition"); // For file downloads if needed
+                });
+            });
+
+            Log.Information("CORS enabled for origins: {AllowedOrigins}", string.Join(", ", allowedOrigins));
         }
 
         private static void AddSwagger(WebApplicationBuilder builder)

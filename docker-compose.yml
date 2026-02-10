@@ -98,6 +98,12 @@ services:
       - OpenTelemetry__ConsoleExporter__Enabled=true
       - OpenTelemetry__OtlpExporter__Enabled=false
 
+      # CORS Configuration
+      - Cors__Enabled=true
+      - Cors__AllowedOrigins__0=http://localhost:3000
+      - Cors__AllowedOrigins__1=http://web:80
+      - Cors__AllowedOrigins__2=http://localhost:8080
+
       # Logging
       - ASPNETCORE_ENVIRONMENT=Development
       - Logging__LogLevel__Default=Information
