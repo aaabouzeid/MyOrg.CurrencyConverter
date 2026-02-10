@@ -7,6 +7,10 @@ WORKDIR /app
 EXPOSE 8080
 EXPOSE 8081
 ENV CurrencyProvider__FrankfurterApiBaseUrl=https://api.frankfurter.app
+ENV CurrencyRestrictions__RestrictedCurrencies__0=TRY
+ENV CurrencyRestrictions__RestrictedCurrencies__1=PLN
+ENV CurrencyRestrictions__RestrictedCurrencies__2=THB
+ENV CurrencyRestrictions__RestrictedCurrencies__3=MXN
 
 
 # This stage is used to build the service project

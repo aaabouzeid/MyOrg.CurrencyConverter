@@ -39,11 +39,7 @@ namespace MyOrg.CurrencyConverter.API.Services
 
             var rateData = await _currencyProvider.GetExchangeRate(request.From, request.To);
 
-            if (rateData?.Rates == null || !rateData.Rates.ContainsKey(request.To))
-                throw new InvalidOperationException($"Exchange rate for {request.To} not found");
-
-            var rate = rateData.Rates[request.To];
-            return request.Amount * rate;
+            return rateData.ConvertAmount(request.Amount, request.To);
         }
 
         public async Task<CurrencyRates> GetExchangeRateAsync(GetExchangeRateRequest request)

@@ -22,9 +22,15 @@ namespace MyOrg.CurrencyConverter.API
             services.AddTransient<Infrastructure.FrankfurterCurrencyProvider>();
             services.AddTransient<Core.Interfaces.ICurrencyProvider>(sp => sp.GetRequiredService<Infrastructure.FrankfurterCurrencyProvider>());
 
+            // Read restricted currencies from configuration
+            var restrictedCurrencies = configuration
+                .GetSection("CurrencyRestrictions:RestrictedCurrencies")
+                .Get<string[]>() ?? new[] { "TRY", "PLN", "THB", "MXN" };
+
             // Validators
             services.AddTransient<IValidator<Core.Models.Requests.GetLatestRatesRequest>, Core.Validators.GetLatestRatesRequestValidator>();
-            services.AddTransient<IValidator<Core.Models.Requests.ConvertCurrencyRequest>, Core.Validators.ConvertCurrencyRequestValidator>();
+            services.AddTransient<IValidator<Core.Models.Requests.ConvertCurrencyRequest>>(sp =>
+                new Core.Validators.ConvertCurrencyRequestValidator(restrictedCurrencies));
             services.AddTransient<IValidator<Core.Models.Requests.GetExchangeRateRequest>, Core.Validators.GetExchangeRateRequestValidator>();
             services.AddTransient<IValidator<Core.Models.Requests.GetHistoricalRatesRequest>, Core.Validators.GetHistoricalRatesRequestValidator>();
 

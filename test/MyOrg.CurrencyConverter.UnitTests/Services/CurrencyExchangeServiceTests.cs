@@ -13,14 +13,16 @@ namespace MyOrg.CurrencyConverter.UnitTests.Services
     {
         private readonly Mock<ICurrencyProvider> _mockProvider;
         private readonly CurrencyExchangeService _service;
+        private readonly string[] _restrictedCurrencies = new[] { "TRY", "PLN", "THB", "MXN" };
 
         public CurrencyExchangeServiceTests()
         {
             _mockProvider = new Mock<ICurrencyProvider>();
+
             _service = new CurrencyExchangeService(
                 _mockProvider.Object,
                 new GetLatestRatesRequestValidator(),
-                new ConvertCurrencyRequestValidator(),
+                new ConvertCurrencyRequestValidator(_restrictedCurrencies),
                 new GetExchangeRateRequestValidator(),
                 new GetHistoricalRatesRequestValidator());
         }
@@ -32,7 +34,7 @@ namespace MyOrg.CurrencyConverter.UnitTests.Services
             var action = () => new CurrencyExchangeService(
                 null!,
                 new GetLatestRatesRequestValidator(),
-                new ConvertCurrencyRequestValidator(),
+                new ConvertCurrencyRequestValidator(_restrictedCurrencies),
                 new GetExchangeRateRequestValidator(),
                 new GetHistoricalRatesRequestValidator());
 
@@ -194,6 +196,56 @@ namespace MyOrg.CurrencyConverter.UnitTests.Services
             // Act & Assert
             var action = async () => await _service.ConvertCurrencyAsync(request);
             await action.Should().ThrowAsync<InvalidOperationException>();
+        }
+
+        [Theory]
+        [InlineData("TRY")]
+        [InlineData("PLN")]
+        [InlineData("THB")]
+        [InlineData("MXN")]
+        public async Task ConvertCurrencyAsync_RestrictedFromCurrency_ThrowsValidationException(string restrictedCurrency)
+        {
+            // Arrange
+            var request = new ConvertCurrencyRequest { From = restrictedCurrency, To = "USD", Amount = 100m };
+
+            // Act & Assert
+            var action = async () => await _service.ConvertCurrencyAsync(request);
+            var exception = await action.Should().ThrowAsync<ValidationException>();
+            exception.Which.Errors.Should().Contain(e =>
+                e.PropertyName == "From" &&
+                e.ErrorMessage.Contains("not supported") &&
+                e.ErrorMessage.Contains(restrictedCurrency));
+        }
+
+        [Theory]
+        [InlineData("TRY")]
+        [InlineData("PLN")]
+        [InlineData("THB")]
+        [InlineData("MXN")]
+        public async Task ConvertCurrencyAsync_RestrictedToCurrency_ThrowsValidationException(string restrictedCurrency)
+        {
+            // Arrange
+            var request = new ConvertCurrencyRequest { From = "USD", To = restrictedCurrency, Amount = 100m };
+
+            // Act & Assert
+            var action = async () => await _service.ConvertCurrencyAsync(request);
+            var exception = await action.Should().ThrowAsync<ValidationException>();
+            exception.Which.Errors.Should().Contain(e =>
+                e.PropertyName == "To" &&
+                e.ErrorMessage.Contains("not supported") &&
+                e.ErrorMessage.Contains(restrictedCurrency));
+        }
+
+        [Fact]
+        public async Task ConvertCurrencyAsync_BothCurrenciesRestricted_ThrowsValidationException()
+        {
+            // Arrange
+            var request = new ConvertCurrencyRequest { From = "TRY", To = "PLN", Amount = 100m };
+
+            // Act & Assert
+            var action = async () => await _service.ConvertCurrencyAsync(request);
+            var exception = await action.Should().ThrowAsync<ValidationException>();
+            exception.Which.Errors.Should().HaveCountGreaterThanOrEqualTo(2);
         }
 
         #endregion
