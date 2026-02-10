@@ -1,4 +1,5 @@
-﻿using Polly;
+﻿using FluentValidation;
+using Polly;
 using Polly.Extensions.Http;
 
 namespace MyOrg.CurrencyConverter.API
@@ -20,6 +21,12 @@ namespace MyOrg.CurrencyConverter.API
 
             services.AddTransient<Infrastructure.FrankfurterCurrencyProvider>();
             services.AddTransient<Core.Interfaces.ICurrencyProvider>(sp => sp.GetRequiredService<Infrastructure.FrankfurterCurrencyProvider>());
+
+            // Validators
+            services.AddTransient<IValidator<Core.Models.Requests.GetLatestRatesRequest>, Core.Validators.GetLatestRatesRequestValidator>();
+            services.AddTransient<IValidator<Core.Models.Requests.ConvertCurrencyRequest>, Core.Validators.ConvertCurrencyRequestValidator>();
+            services.AddTransient<IValidator<Core.Models.Requests.GetExchangeRateRequest>, Core.Validators.GetExchangeRateRequestValidator>();
+            services.AddTransient<IValidator<Core.Models.Requests.GetHistoricalRatesRequest>, Core.Validators.GetHistoricalRatesRequestValidator>();
 
             // Application Services
             services.AddTransient<Services.ICurrencyExchangeService, Services.CurrencyExchangeService>();

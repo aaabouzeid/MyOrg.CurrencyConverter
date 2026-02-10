@@ -1,4 +1,3 @@
-
 namespace MyOrg.CurrencyConverter.API
 {
     public class Program
@@ -10,7 +9,10 @@ namespace MyOrg.CurrencyConverter.API
             // Add services to the container.
 
             builder.Services.AddControllers();
-            builder.Services.AddOpenApi();
+
+            // Add Swagger/OpenAPI
+            builder.Services.AddEndpointsApiExplorer();
+            builder.Services.AddSwaggerGen();
 
             // Register application services with Polly resilience policies
             ServicesProviderHelper.AddAppServices(builder.Services, builder.Configuration);
@@ -20,7 +22,12 @@ namespace MyOrg.CurrencyConverter.API
             // Configure the HTTP request pipeline.
             if (app.Environment.IsDevelopment())
             {
-                app.MapOpenApi();
+                app.UseSwagger();
+                app.UseSwaggerUI(c =>
+                {
+                    c.SwaggerEndpoint("/swagger/v1/swagger.json", "Currency Converter API v1");
+                    c.RoutePrefix = "swagger";
+                });
             }
 
             app.UseHttpsRedirection();

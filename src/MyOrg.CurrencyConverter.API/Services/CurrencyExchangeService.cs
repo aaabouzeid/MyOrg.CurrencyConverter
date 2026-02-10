@@ -1,69 +1,61 @@
-﻿using MyOrg.CurrencyConverter.API.Core.Interfaces;
+﻿using FluentValidation;
+using MyOrg.CurrencyConverter.API.Core.Interfaces;
 using MyOrg.CurrencyConverter.API.Core.Models;
+using MyOrg.CurrencyConverter.API.Core.Models.Requests;
 
 namespace MyOrg.CurrencyConverter.API.Services
 {
     public class CurrencyExchangeService : ICurrencyExchangeService
     {
         private readonly ICurrencyProvider _currencyProvider;
+        private readonly IValidator<GetLatestRatesRequest> _latestRatesValidator;
+        private readonly IValidator<ConvertCurrencyRequest> _convertCurrencyValidator;
+        private readonly IValidator<GetExchangeRateRequest> _exchangeRateValidator;
+        private readonly IValidator<GetHistoricalRatesRequest> _historicalRatesValidator;
 
-        public CurrencyExchangeService(ICurrencyProvider currencyProvider)
+        public CurrencyExchangeService(
+            ICurrencyProvider currencyProvider,
+            IValidator<GetLatestRatesRequest> latestRatesValidator,
+            IValidator<ConvertCurrencyRequest> convertCurrencyValidator,
+            IValidator<GetExchangeRateRequest> exchangeRateValidator,
+            IValidator<GetHistoricalRatesRequest> historicalRatesValidator)
         {
             _currencyProvider = currencyProvider ?? throw new ArgumentNullException(nameof(currencyProvider));
+            _latestRatesValidator = latestRatesValidator ?? throw new ArgumentNullException(nameof(latestRatesValidator));
+            _convertCurrencyValidator = convertCurrencyValidator ?? throw new ArgumentNullException(nameof(convertCurrencyValidator));
+            _exchangeRateValidator = exchangeRateValidator ?? throw new ArgumentNullException(nameof(exchangeRateValidator));
+            _historicalRatesValidator = historicalRatesValidator ?? throw new ArgumentNullException(nameof(historicalRatesValidator));
         }
 
-        public async Task<CurrencyRates> GetLatestRatesAsync(string baseCurrency)
+        public async Task<CurrencyRates> GetLatestRatesAsync(GetLatestRatesRequest request)
         {
-            if (string.IsNullOrWhiteSpace(baseCurrency))
-                throw new ArgumentException("Base currency cannot be empty", nameof(baseCurrency));
-
-            return await _currencyProvider.GetLatestExchangeRates(baseCurrency);
+            await _latestRatesValidator.ValidateAndThrowAsync(request);
+            return await _currencyProvider.GetLatestExchangeRates(request.BaseCurrency);
         }
 
-        public async Task<decimal> ConvertCurrencyAsync(string from, string to, decimal amount)
+        public async Task<decimal> ConvertCurrencyAsync(ConvertCurrencyRequest request)
         {
-            if (string.IsNullOrWhiteSpace(from))
-                throw new ArgumentException("Source currency cannot be empty", nameof(from));
+            await _convertCurrencyValidator.ValidateAndThrowAsync(request);
 
-            if (string.IsNullOrWhiteSpace(to))
-                throw new ArgumentException("Target currency cannot be empty", nameof(to));
+            var rateData = await _currencyProvider.GetExchangeRate(request.From, request.To);
 
-            if (amount < 0)
-                throw new ArgumentException("Amount cannot be negative", nameof(amount));
+            if (rateData?.Rates == null || !rateData.Rates.ContainsKey(request.To))
+                throw new InvalidOperationException($"Exchange rate for {request.To} not found");
 
-            var rateData = await _currencyProvider.GetExchangeRate(from, to);
-
-            if (rateData?.Rates == null || !rateData.Rates.ContainsKey(to))
-                throw new InvalidOperationException($"Exchange rate for {to} not found");
-
-            var rate = rateData.Rates[to];
-            return amount * rate;
+            var rate = rateData.Rates[request.To];
+            return request.Amount * rate;
         }
 
-        public async Task<CurrencyRates> GetExchangeRateAsync(string from, string to)
+        public async Task<CurrencyRates> GetExchangeRateAsync(GetExchangeRateRequest request)
         {
-            if (string.IsNullOrWhiteSpace(from))
-                throw new ArgumentException("Source currency cannot be empty", nameof(from));
-
-            if (string.IsNullOrWhiteSpace(to))
-                throw new ArgumentException("Target currency cannot be empty", nameof(to));
-
-            return await _currencyProvider.GetExchangeRate(from, to);
+            await _exchangeRateValidator.ValidateAndThrowAsync(request);
+            return await _currencyProvider.GetExchangeRate(request.From, request.To);
         }
 
-        public async Task<CurrencyHistoricalRates> GetHistoricalRatesAsync(
-            string baseCurrency, DateTime startDate, DateTime endDate)
+        public async Task<CurrencyHistoricalRates> GetHistoricalRatesAsync(GetHistoricalRatesRequest request)
         {
-            if (string.IsNullOrWhiteSpace(baseCurrency))
-                throw new ArgumentException("Base currency cannot be empty", nameof(baseCurrency));
-
-            if (startDate >= endDate)
-                throw new ArgumentException("Start date must be before end date", nameof(startDate));
-
-            if (endDate > DateTime.UtcNow.Date)
-                throw new ArgumentException("End date cannot be in the future", nameof(endDate));
-
-            return await _currencyProvider.GetHistoricalExchangeRates(baseCurrency, startDate, endDate);
+            await _historicalRatesValidator.ValidateAndThrowAsync(request);
+            return await _currencyProvider.GetHistoricalExchangeRates(request.BaseCurrency, request.StartDate, request.EndDate);
         }
     }
 }

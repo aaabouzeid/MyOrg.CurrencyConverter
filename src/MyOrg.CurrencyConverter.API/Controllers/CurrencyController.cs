@@ -1,5 +1,7 @@
+using FluentValidation;
 using Microsoft.AspNetCore.Mvc;
 using MyOrg.CurrencyConverter.API.Core.Models;
+using MyOrg.CurrencyConverter.API.Core.Models.Requests;
 using MyOrg.CurrencyConverter.API.Services;
 
 namespace MyOrg.CurrencyConverter.API.Controllers
@@ -35,13 +37,16 @@ namespace MyOrg.CurrencyConverter.API.Controllers
             try
             {
                 _logger.LogInformation("Getting latest rates for base currency: {BaseCurrency}", baseCurrency);
-                var rates = await _exchangeService.GetLatestRatesAsync(baseCurrency);
+
+                var request = new GetLatestRatesRequest { BaseCurrency = baseCurrency };
+                var rates = await _exchangeService.GetLatestRatesAsync(request);
+
                 return Ok(rates);
             }
-            catch (ArgumentException ex)
+            catch (ValidationException ex)
             {
-                _logger.LogWarning(ex, "Invalid argument for GetLatestRates: {Message}", ex.Message);
-                return BadRequest(new { error = ex.Message });
+                _logger.LogWarning(ex, "Validation failed for GetLatestRates: {Errors}", ex.Errors);
+                return BadRequest(new { errors = ex.Errors.Select(e => new { field = e.PropertyName, message = e.ErrorMessage }) });
             }
             catch (InvalidOperationException ex)
             {
@@ -80,8 +85,12 @@ namespace MyOrg.CurrencyConverter.API.Controllers
             try
             {
                 _logger.LogInformation("Converting {Amount} {From} to {To}", amount, from, to);
-                var convertedAmount = await _exchangeService.ConvertCurrencyAsync(from, to, amount);
-                var rateData = await _exchangeService.GetExchangeRateAsync(from, to);
+
+                var convertRequest = new ConvertCurrencyRequest { From = from, To = to, Amount = amount };
+                var convertedAmount = await _exchangeService.ConvertCurrencyAsync(convertRequest);
+
+                var rateRequest = new GetExchangeRateRequest { From = from, To = to };
+                var rateData = await _exchangeService.GetExchangeRateAsync(rateRequest);
 
                 var result = new ConversionResult
                 {
@@ -97,10 +106,10 @@ namespace MyOrg.CurrencyConverter.API.Controllers
 
                 return Ok(result);
             }
-            catch (ArgumentException ex)
+            catch (ValidationException ex)
             {
-                _logger.LogWarning(ex, "Invalid argument for ConvertCurrency: {Message}", ex.Message);
-                return BadRequest(new { error = ex.Message });
+                _logger.LogWarning(ex, "Validation failed for ConvertCurrency: {Errors}", ex.Errors);
+                return BadRequest(new { errors = ex.Errors.Select(e => new { field = e.PropertyName, message = e.ErrorMessage }) });
             }
             catch (InvalidOperationException ex)
             {
@@ -137,13 +146,16 @@ namespace MyOrg.CurrencyConverter.API.Controllers
             try
             {
                 _logger.LogInformation("Getting exchange rate from {From} to {To}", from, to);
-                var rate = await _exchangeService.GetExchangeRateAsync(from, to);
+
+                var request = new GetExchangeRateRequest { From = from, To = to };
+                var rate = await _exchangeService.GetExchangeRateAsync(request);
+
                 return Ok(rate);
             }
-            catch (ArgumentException ex)
+            catch (ValidationException ex)
             {
-                _logger.LogWarning(ex, "Invalid argument for GetExchangeRate: {Message}", ex.Message);
-                return BadRequest(new { error = ex.Message });
+                _logger.LogWarning(ex, "Validation failed for GetExchangeRate: {Errors}", ex.Errors);
+                return BadRequest(new { errors = ex.Errors.Select(e => new { field = e.PropertyName, message = e.ErrorMessage }) });
             }
             catch (InvalidOperationException ex)
             {
@@ -185,13 +197,20 @@ namespace MyOrg.CurrencyConverter.API.Controllers
                     "Getting historical rates for {BaseCurrency} from {StartDate} to {EndDate}",
                     baseCurrency, startDate, endDate);
 
-                var rates = await _exchangeService.GetHistoricalRatesAsync(baseCurrency, startDate, endDate);
+                var request = new GetHistoricalRatesRequest
+                {
+                    BaseCurrency = baseCurrency,
+                    StartDate = startDate,
+                    EndDate = endDate
+                };
+                var rates = await _exchangeService.GetHistoricalRatesAsync(request);
+
                 return Ok(rates);
             }
-            catch (ArgumentException ex)
+            catch (ValidationException ex)
             {
-                _logger.LogWarning(ex, "Invalid argument for GetHistoricalRates: {Message}", ex.Message);
-                return BadRequest(new { error = ex.Message });
+                _logger.LogWarning(ex, "Validation failed for GetHistoricalRates: {Errors}", ex.Errors);
+                return BadRequest(new { errors = ex.Errors.Select(e => new { field = e.PropertyName, message = e.ErrorMessage }) });
             }
             catch (InvalidOperationException ex)
             {

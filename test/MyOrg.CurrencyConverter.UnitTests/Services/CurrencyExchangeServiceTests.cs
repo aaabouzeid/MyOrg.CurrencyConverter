@@ -1,7 +1,10 @@
 using FluentAssertions;
+using FluentValidation;
 using Moq;
 using MyOrg.CurrencyConverter.API.Core.Interfaces;
 using MyOrg.CurrencyConverter.API.Core.Models;
+using MyOrg.CurrencyConverter.API.Core.Models.Requests;
+using MyOrg.CurrencyConverter.API.Core.Validators;
 using MyOrg.CurrencyConverter.API.Services;
 
 namespace MyOrg.CurrencyConverter.UnitTests.Services
@@ -14,14 +17,25 @@ namespace MyOrg.CurrencyConverter.UnitTests.Services
         public CurrencyExchangeServiceTests()
         {
             _mockProvider = new Mock<ICurrencyProvider>();
-            _service = new CurrencyExchangeService(_mockProvider.Object);
+            _service = new CurrencyExchangeService(
+                _mockProvider.Object,
+                new GetLatestRatesRequestValidator(),
+                new ConvertCurrencyRequestValidator(),
+                new GetExchangeRateRequestValidator(),
+                new GetHistoricalRatesRequestValidator());
         }
 
         [Fact]
         public void Constructor_NullProvider_ThrowsArgumentNullException()
         {
             // Act & Assert
-            var action = () => new CurrencyExchangeService(null!);
+            var action = () => new CurrencyExchangeService(
+                null!,
+                new GetLatestRatesRequestValidator(),
+                new ConvertCurrencyRequestValidator(),
+                new GetExchangeRateRequestValidator(),
+                new GetHistoricalRatesRequestValidator());
+
             action.Should().Throw<ArgumentNullException>()
                 .WithParameterName("currencyProvider");
         }
@@ -46,8 +60,10 @@ namespace MyOrg.CurrencyConverter.UnitTests.Services
             _mockProvider.Setup(p => p.GetLatestExchangeRates("USD"))
                 .ReturnsAsync(expectedRates);
 
+            var request = new GetLatestRatesRequest { BaseCurrency = "USD" };
+
             // Act
-            var result = await _service.GetLatestRatesAsync("USD");
+            var result = await _service.GetLatestRatesAsync(request);
 
             // Assert
             result.Should().Be(expectedRates);
@@ -58,12 +74,25 @@ namespace MyOrg.CurrencyConverter.UnitTests.Services
         [InlineData(null)]
         [InlineData("")]
         [InlineData("   ")]
-        public async Task GetLatestRatesAsync_InvalidCurrency_ThrowsArgumentException(string? currency)
+        public async Task GetLatestRatesAsync_InvalidCurrency_ThrowsValidationException(string? currency)
         {
+            // Arrange
+            var request = new GetLatestRatesRequest { BaseCurrency = currency! };
+
             // Act & Assert
-            var action = async () => await _service.GetLatestRatesAsync(currency!);
-            await action.Should().ThrowAsync<ArgumentException>()
-                .WithParameterName("baseCurrency");
+            var action = async () => await _service.GetLatestRatesAsync(request);
+            await action.Should().ThrowAsync<ValidationException>();
+        }
+
+        [Fact]
+        public async Task GetLatestRatesAsync_InvalidCurrencyFormat_ThrowsValidationException()
+        {
+            // Arrange
+            var request = new GetLatestRatesRequest { BaseCurrency = "US" }; // Only 2 characters
+
+            // Act & Assert
+            var action = async () => await _service.GetLatestRatesAsync(request);
+            await action.Should().ThrowAsync<ValidationException>();
         }
 
         #endregion
@@ -81,8 +110,10 @@ namespace MyOrg.CurrencyConverter.UnitTests.Services
                     Rates = new Dictionary<string, decimal> { { "EUR", 0.92m } }
                 });
 
+            var request = new ConvertCurrencyRequest { From = "USD", To = "EUR", Amount = 100m };
+
             // Act
-            var result = await _service.ConvertCurrencyAsync("USD", "EUR", 100m);
+            var result = await _service.ConvertCurrencyAsync(request);
 
             // Assert
             result.Should().Be(92m);
@@ -93,33 +124,39 @@ namespace MyOrg.CurrencyConverter.UnitTests.Services
         [InlineData(null, "EUR")]
         [InlineData("", "EUR")]
         [InlineData("   ", "EUR")]
-        public async Task ConvertCurrencyAsync_InvalidFromCurrency_ThrowsArgumentException(string? from, string to)
+        public async Task ConvertCurrencyAsync_InvalidFromCurrency_ThrowsValidationException(string? from, string to)
         {
+            // Arrange
+            var request = new ConvertCurrencyRequest { From = from!, To = to, Amount = 100m };
+
             // Act & Assert
-            var action = async () => await _service.ConvertCurrencyAsync(from!, to, 100m);
-            await action.Should().ThrowAsync<ArgumentException>()
-                .WithParameterName("from");
+            var action = async () => await _service.ConvertCurrencyAsync(request);
+            await action.Should().ThrowAsync<ValidationException>();
         }
 
         [Theory]
         [InlineData("USD", null)]
         [InlineData("USD", "")]
         [InlineData("USD", "   ")]
-        public async Task ConvertCurrencyAsync_InvalidToCurrency_ThrowsArgumentException(string from, string? to)
+        public async Task ConvertCurrencyAsync_InvalidToCurrency_ThrowsValidationException(string from, string? to)
         {
+            // Arrange
+            var request = new ConvertCurrencyRequest { From = from, To = to!, Amount = 100m };
+
             // Act & Assert
-            var action = async () => await _service.ConvertCurrencyAsync(from, to!, 100m);
-            await action.Should().ThrowAsync<ArgumentException>()
-                .WithParameterName("to");
+            var action = async () => await _service.ConvertCurrencyAsync(request);
+            await action.Should().ThrowAsync<ValidationException>();
         }
 
         [Fact]
-        public async Task ConvertCurrencyAsync_NegativeAmount_ThrowsArgumentException()
+        public async Task ConvertCurrencyAsync_NegativeAmount_ThrowsValidationException()
         {
+            // Arrange
+            var request = new ConvertCurrencyRequest { From = "USD", To = "EUR", Amount = -100m };
+
             // Act & Assert
-            var action = async () => await _service.ConvertCurrencyAsync("USD", "EUR", -100m);
-            await action.Should().ThrowAsync<ArgumentException>()
-                .WithParameterName("amount");
+            var action = async () => await _service.ConvertCurrencyAsync(request);
+            await action.Should().ThrowAsync<ValidationException>();
         }
 
         [Fact]
@@ -133,8 +170,10 @@ namespace MyOrg.CurrencyConverter.UnitTests.Services
                     Rates = new Dictionary<string, decimal>()
                 });
 
+            var request = new ConvertCurrencyRequest { From = "USD", To = "EUR", Amount = 100m };
+
             // Act & Assert
-            var action = async () => await _service.ConvertCurrencyAsync("USD", "EUR", 100m);
+            var action = async () => await _service.ConvertCurrencyAsync(request);
             await action.Should().ThrowAsync<InvalidOperationException>()
                 .WithMessage("Exchange rate for EUR not found");
         }
@@ -150,8 +189,10 @@ namespace MyOrg.CurrencyConverter.UnitTests.Services
                     Rates = null!
                 });
 
+            var request = new ConvertCurrencyRequest { From = "USD", To = "EUR", Amount = 100m };
+
             // Act & Assert
-            var action = async () => await _service.ConvertCurrencyAsync("USD", "EUR", 100m);
+            var action = async () => await _service.ConvertCurrencyAsync(request);
             await action.Should().ThrowAsync<InvalidOperationException>();
         }
 
@@ -172,8 +213,10 @@ namespace MyOrg.CurrencyConverter.UnitTests.Services
             _mockProvider.Setup(p => p.GetExchangeRate("USD", "EUR"))
                 .ReturnsAsync(expectedRate);
 
+            var request = new GetExchangeRateRequest { From = "USD", To = "EUR" };
+
             // Act
-            var result = await _service.GetExchangeRateAsync("USD", "EUR");
+            var result = await _service.GetExchangeRateAsync(request);
 
             // Assert
             result.Should().Be(expectedRate);
@@ -184,24 +227,28 @@ namespace MyOrg.CurrencyConverter.UnitTests.Services
         [InlineData(null, "EUR")]
         [InlineData("", "EUR")]
         [InlineData("   ", "EUR")]
-        public async Task GetExchangeRateAsync_InvalidFromCurrency_ThrowsArgumentException(string? from, string to)
+        public async Task GetExchangeRateAsync_InvalidFromCurrency_ThrowsValidationException(string? from, string to)
         {
+            // Arrange
+            var request = new GetExchangeRateRequest { From = from!, To = to };
+
             // Act & Assert
-            var action = async () => await _service.GetExchangeRateAsync(from!, to);
-            await action.Should().ThrowAsync<ArgumentException>()
-                .WithParameterName("from");
+            var action = async () => await _service.GetExchangeRateAsync(request);
+            await action.Should().ThrowAsync<ValidationException>();
         }
 
         [Theory]
         [InlineData("USD", null)]
         [InlineData("USD", "")]
         [InlineData("USD", "   ")]
-        public async Task GetExchangeRateAsync_InvalidToCurrency_ThrowsArgumentException(string from, string? to)
+        public async Task GetExchangeRateAsync_InvalidToCurrency_ThrowsValidationException(string from, string? to)
         {
+            // Arrange
+            var request = new GetExchangeRateRequest { From = from, To = to! };
+
             // Act & Assert
-            var action = async () => await _service.GetExchangeRateAsync(from, to!);
-            await action.Should().ThrowAsync<ArgumentException>()
-                .WithParameterName("to");
+            var action = async () => await _service.GetExchangeRateAsync(request);
+            await action.Should().ThrowAsync<ValidationException>();
         }
 
         #endregion
@@ -225,8 +272,15 @@ namespace MyOrg.CurrencyConverter.UnitTests.Services
             _mockProvider.Setup(p => p.GetHistoricalExchangeRates("USD", startDate, endDate))
                 .ReturnsAsync(expectedRates);
 
+            var request = new GetHistoricalRatesRequest
+            {
+                BaseCurrency = "USD",
+                StartDate = startDate,
+                EndDate = endDate
+            };
+
             // Act
-            var result = await _service.GetHistoricalRatesAsync("USD", startDate, endDate);
+            var result = await _service.GetHistoricalRatesAsync(request);
 
             // Assert
             result.Should().Be(expectedRates);
@@ -237,54 +291,78 @@ namespace MyOrg.CurrencyConverter.UnitTests.Services
         [InlineData(null)]
         [InlineData("")]
         [InlineData("   ")]
-        public async Task GetHistoricalRatesAsync_InvalidCurrency_ThrowsArgumentException(string? currency)
+        public async Task GetHistoricalRatesAsync_InvalidCurrency_ThrowsValidationException(string? currency)
         {
             // Arrange
             var startDate = new DateTime(2024, 1, 1);
             var endDate = new DateTime(2024, 1, 31);
 
+            var request = new GetHistoricalRatesRequest
+            {
+                BaseCurrency = currency!,
+                StartDate = startDate,
+                EndDate = endDate
+            };
+
             // Act & Assert
-            var action = async () => await _service.GetHistoricalRatesAsync(currency!, startDate, endDate);
-            await action.Should().ThrowAsync<ArgumentException>()
-                .WithParameterName("baseCurrency");
+            var action = async () => await _service.GetHistoricalRatesAsync(request);
+            await action.Should().ThrowAsync<ValidationException>();
         }
 
         [Fact]
-        public async Task GetHistoricalRatesAsync_StartDateAfterEndDate_ThrowsArgumentException()
+        public async Task GetHistoricalRatesAsync_StartDateAfterEndDate_ThrowsValidationException()
         {
             // Arrange
             var startDate = new DateTime(2024, 1, 31);
             var endDate = new DateTime(2024, 1, 1);
 
+            var request = new GetHistoricalRatesRequest
+            {
+                BaseCurrency = "USD",
+                StartDate = startDate,
+                EndDate = endDate
+            };
+
             // Act & Assert
-            var action = async () => await _service.GetHistoricalRatesAsync("USD", startDate, endDate);
-            await action.Should().ThrowAsync<ArgumentException>()
-                .WithParameterName("startDate");
+            var action = async () => await _service.GetHistoricalRatesAsync(request);
+            await action.Should().ThrowAsync<ValidationException>();
         }
 
         [Fact]
-        public async Task GetHistoricalRatesAsync_StartDateEqualsEndDate_ThrowsArgumentException()
+        public async Task GetHistoricalRatesAsync_StartDateEqualsEndDate_ThrowsValidationException()
         {
             // Arrange
             var date = new DateTime(2024, 1, 1);
 
+            var request = new GetHistoricalRatesRequest
+            {
+                BaseCurrency = "USD",
+                StartDate = date,
+                EndDate = date
+            };
+
             // Act & Assert
-            var action = async () => await _service.GetHistoricalRatesAsync("USD", date, date);
-            await action.Should().ThrowAsync<ArgumentException>()
-                .WithParameterName("startDate");
+            var action = async () => await _service.GetHistoricalRatesAsync(request);
+            await action.Should().ThrowAsync<ValidationException>();
         }
 
         [Fact]
-        public async Task GetHistoricalRatesAsync_EndDateInFuture_ThrowsArgumentException()
+        public async Task GetHistoricalRatesAsync_EndDateInFuture_ThrowsValidationException()
         {
             // Arrange
             var startDate = DateTime.UtcNow.Date.AddDays(-10);
             var endDate = DateTime.UtcNow.Date.AddDays(1);
 
+            var request = new GetHistoricalRatesRequest
+            {
+                BaseCurrency = "USD",
+                StartDate = startDate,
+                EndDate = endDate
+            };
+
             // Act & Assert
-            var action = async () => await _service.GetHistoricalRatesAsync("USD", startDate, endDate);
-            await action.Should().ThrowAsync<ArgumentException>()
-                .WithParameterName("endDate");
+            var action = async () => await _service.GetHistoricalRatesAsync(request);
+            await action.Should().ThrowAsync<ValidationException>();
         }
 
         #endregion
