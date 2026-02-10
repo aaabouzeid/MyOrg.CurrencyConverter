@@ -49,8 +49,8 @@ namespace MyOrg.CurrencyConverter.API
                 options.SwaggerDoc("v1", new OpenApiInfo
                 {
                     Title = "Currency Converter API",
-                    Version = "v1",
-                    Description = "API for currency conversion with JWT authentication"
+                    Version = "v1.0",
+                    Description = "API for currency conversion with JWT authentication and versioning support. All endpoints are prefixed with /api/v1/"
                 });
 
                 // Define the Bearer security scheme

@@ -136,9 +136,9 @@ export const authApi = {
 
 // Currency API
 export const currencyApi = {
-  // GET /api/currency/convert?from={from}&to={to}&amount={amount}
+  // GET /api/v1/currency/convert?from={from}&to={to}&amount={amount}
   convert: async (data: ConversionRequest): Promise<ConversionResponse> => {
-    const response = await apiClient.get<ConversionResponse>('/api/currency/convert', {
+    const response = await apiClient.get<ConversionResponse>('/api/v1/currency/convert', {
       params: {
         from: data.from,
         to: data.to,
@@ -148,23 +148,23 @@ export const currencyApi = {
     return response.data;
   },
 
-  // GET /api/currency/latest/{baseCurrency}
+  // GET /api/v1/currency/latest/{baseCurrency}
   getLatestRates: async (baseCurrency: string): Promise<LatestRatesResponse> => {
-    const response = await apiClient.get<LatestRatesResponse>(`/api/currency/latest/${baseCurrency}`);
+    const response = await apiClient.get<LatestRatesResponse>(`/api/v1/currency/latest/${baseCurrency}`);
     return response.data;
   },
 
-  // GET /api/currency/rate?from={from}&to={to}
+  // GET /api/v1/currency/rate?from={from}&to={to}
   getExchangeRate: async (from: string, to: string): Promise<LatestRatesResponse> => {
-    const response = await apiClient.get<LatestRatesResponse>('/api/currency/rate', {
+    const response = await apiClient.get<LatestRatesResponse>('/api/v1/currency/rate', {
       params: { from, to },
     });
     return response.data;
   },
 
-  // GET /api/currency/historical?baseCurrency={baseCurrency}&startDate={startDate}&endDate={endDate}&pageNumber={pageNumber}&pageSize={pageSize}
+  // GET /api/v1/currency/historical?baseCurrency={baseCurrency}&startDate={startDate}&endDate={endDate}&pageNumber={pageNumber}&pageSize={pageSize}
   getHistoricalRates: async (data: HistoricalRatesRequest): Promise<PagedHistoricalRatesResponse> => {
-    const response = await apiClient.get<PagedHistoricalRatesResponse>('/api/currency/historical', {
+    const response = await apiClient.get<PagedHistoricalRatesResponse>('/api/v1/currency/historical', {
       params: {
         baseCurrency: data.baseCurrency,
         startDate: data.startDate,
