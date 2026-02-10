@@ -16,8 +16,8 @@ namespace MyOrg.CurrencyConverter.API
                 client.BaseAddress = new Uri(frankfurterApiBaseUrl);
                 client.DefaultRequestHeaders.Add("Accept", "application/json");
             })
-            .AddPolicyHandler(GetRetryPolicy())
-            .AddPolicyHandler(GetCircuitBreakerPolicy());
+            .AddPolicyHandler(GetRetryPolicy(configuration))
+            .AddPolicyHandler(GetCircuitBreakerPolicy(configuration));
 
             services.AddTransient<Infrastructure.FrankfurterCurrencyProvider>();
             services.AddTransient<Core.Interfaces.ICurrencyProvider>(sp => sp.GetRequiredService<Infrastructure.FrankfurterCurrencyProvider>());
@@ -40,13 +40,16 @@ namespace MyOrg.CurrencyConverter.API
             return services;
         }
 
-        private static IAsyncPolicy<HttpResponseMessage> GetRetryPolicy()
+        private static IAsyncPolicy<HttpResponseMessage> GetRetryPolicy(IConfiguration configuration)
         {
+            // Read retry configuration with defaults
+            var retryCount = configuration.GetValue<int?>("ResiliencePolicies:RetryPolicy:RetryCount") ?? 3;
+
             return HttpPolicyExtensions
                 .HandleTransientHttpError()
                 .OrResult(msg => msg.StatusCode == System.Net.HttpStatusCode.TooManyRequests)
                 .WaitAndRetryAsync(
-                    retryCount: 3,
+                    retryCount: retryCount,
                     sleepDurationProvider: retryAttempt => TimeSpan.FromSeconds(Math.Pow(2, retryAttempt)),
                     onRetry: (outcome, timespan, retryCount, context) =>
                     {
@@ -54,13 +57,17 @@ namespace MyOrg.CurrencyConverter.API
                     });
         }
 
-        private static IAsyncPolicy<HttpResponseMessage> GetCircuitBreakerPolicy()
+        private static IAsyncPolicy<HttpResponseMessage> GetCircuitBreakerPolicy(IConfiguration configuration)
         {
+            // Read circuit breaker configuration with defaults
+            var handledEventsAllowedBeforeBreaking = configuration.GetValue<int?>("ResiliencePolicies:CircuitBreakerPolicy:HandledEventsAllowedBeforeBreaking") ?? 5;
+            var durationOfBreakInSeconds = configuration.GetValue<int?>("ResiliencePolicies:CircuitBreakerPolicy:DurationOfBreakInSeconds") ?? 30;
+
             return HttpPolicyExtensions
                 .HandleTransientHttpError()
                 .CircuitBreakerAsync(
-                    handledEventsAllowedBeforeBreaking: 5,
-                    durationOfBreak: TimeSpan.FromSeconds(30),
+                    handledEventsAllowedBeforeBreaking: handledEventsAllowedBeforeBreaking,
+                    durationOfBreak: TimeSpan.FromSeconds(durationOfBreakInSeconds),
                     onBreak: (outcome, breakDelay) =>
                     {
                         Console.WriteLine($"Circuit breaker opened for {breakDelay.TotalSeconds}s due to {outcome.Result?.StatusCode}");

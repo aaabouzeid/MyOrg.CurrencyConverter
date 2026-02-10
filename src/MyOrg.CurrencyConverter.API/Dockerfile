@@ -6,11 +6,20 @@ USER $APP_UID
 WORKDIR /app
 EXPOSE 8080
 EXPOSE 8081
+
+# Currency Provider Configuration
 ENV CurrencyProvider__FrankfurterApiBaseUrl=https://api.frankfurter.app
+
+# Currency Restrictions Configuration
 ENV CurrencyRestrictions__RestrictedCurrencies__0=TRY
 ENV CurrencyRestrictions__RestrictedCurrencies__1=PLN
 ENV CurrencyRestrictions__RestrictedCurrencies__2=THB
 ENV CurrencyRestrictions__RestrictedCurrencies__3=MXN
+
+# Resilience Policies Configuration
+ENV ResiliencePolicies__RetryPolicy__RetryCount=3
+ENV ResiliencePolicies__CircuitBreakerPolicy__HandledEventsAllowedBeforeBreaking=5
+ENV ResiliencePolicies__CircuitBreakerPolicy__DurationOfBreakInSeconds=30
 
 
 # This stage is used to build the service project
