@@ -91,6 +91,13 @@ services:
       - RateLimiting__PermitLimit=100
       - RateLimiting__WindowSeconds=60
 
+      # OpenTelemetry
+      - OpenTelemetry__Enabled=true
+      - OpenTelemetry__ServiceName=CurrencyConverter.API
+      - OpenTelemetry__ServiceVersion=1.0.0
+      - OpenTelemetry__ConsoleExporter__Enabled=true
+      - OpenTelemetry__OtlpExporter__Enabled=false
+
       # Logging
       - ASPNETCORE_ENVIRONMENT=Development
       - Logging__LogLevel__Default=Information
@@ -101,6 +108,22 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    networks:
+      - currency-network
+    restart: unless-stopped
+
+  # Currency Converter Web UI
+  web:
+    build:
+      context: ./src/CurrencyConverter.Web
+      dockerfile: Dockerfile
+      args:
+        - VITE_API_BASE_URL=http://localhost:8080
+    container_name: currency-web
+    ports:
+      - "3000:80"
+    depends_on:
+      - api
     networks:
       - currency-network
     restart: unless-stopped

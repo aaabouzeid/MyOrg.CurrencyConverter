@@ -1,0 +1,141 @@
+services:
+  # PostgreSQL Database (Test)
+  postgres-test:
+    image: postgres:16-alpine
+    container_name: currency-postgres-test
+    environment:
+      POSTGRES_DB: currencyconverter_test
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres_test_password
+    ports:
+      - "5433:5432"  # Different port to avoid conflict with dev
+    volumes:
+      - postgres_test_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - currency-test-network
+
+  # Redis Cache (Test)
+  redis-test:
+    image: redis:7-alpine
+    container_name: currency-redis-test
+    ports:
+      - "6380:6379"  # Different port to avoid conflict with dev
+    volumes:
+      - redis_test_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - currency-test-network
+
+  # Currency Converter API (Test)
+  api-test:
+    build:
+      context: .
+      dockerfile: src/MyOrg.CurrencyConverter.API/Dockerfile
+    container_name: currency-api-test
+    ports:
+      - "8082:8080"  # Different port to avoid conflict with dev
+      - "8083:8081"  # Different port to avoid conflict with dev
+    environment:
+      # Environment
+      - ASPNETCORE_ENVIRONMENT=Test
+
+      # Auto-apply migrations on startup
+      - AutoMigrate=true
+
+      # Seed default admin user (Test credentials)
+      - SeedDefaultAdmin=true
+      - DefaultAdmin__Email=testadmin@test.com
+      - DefaultAdmin__Password=Test@1234
+
+      # Database Configuration (Test)
+      - ConnectionStrings__DefaultConnection=Host=postgres-test;Database=currencyconverter_test;Username=postgres;Password=postgres_test_password
+
+      # Cache Configuration (Test)
+      - Cache__Enabled=true
+      - Cache__ConnectionString=redis-test:6379
+      - Cache__DefaultTtlMinutes=10
+      - Cache__Ttl__LatestRatesMinutes=10
+      - Cache__Ttl__ExchangeRateMinutes=10
+      - Cache__ThrowOnFailure=false
+
+      # JWT Settings (Test)
+      - JwtSettings__SecretKey=TestEnvironmentSecretKeyForJwtTokenGeneration!MustBeAtLeast32Characters
+      - JwtSettings__Issuer=CurrencyConverter.API.Test
+      - JwtSettings__Audience=CurrencyConverter.Clients.Test
+      - JwtSettings__ExpirationMinutes=30
+      - JwtSettings__RefreshTokenExpirationDays=1
+
+      # Currency Provider Settings
+      - CurrencyProviderSettings__ActiveProvider=Frankfurter
+      - CurrencyProviderSettings__Frankfurter__BaseUrl=https://api.frankfurter.app
+
+      # Currency Restrictions
+      - CurrencyRestrictions__RestrictedCurrencies__0=TRY
+      - CurrencyRestrictions__RestrictedCurrencies__1=PLN
+      - CurrencyRestrictions__RestrictedCurrencies__2=THB
+      - CurrencyRestrictions__RestrictedCurrencies__3=MXN
+
+      # Resilience Policies (Test - faster fail)
+      - ResiliencePolicies__RetryPolicy__RetryCount=2
+      - ResiliencePolicies__CircuitBreakerPolicy__HandledEventsAllowedBeforeBreaking=3
+      - ResiliencePolicies__CircuitBreakerPolicy__DurationOfBreakInSeconds=15
+
+      # Rate Limiting (Test - more relaxed)
+      - RateLimiting__Enabled=true
+      - RateLimiting__PermitLimit=500
+      - RateLimiting__WindowSeconds=60
+
+      # OpenTelemetry (Test)
+      - OpenTelemetry__Enabled=true
+      - OpenTelemetry__ServiceName=CurrencyConverter.API.Test
+      - OpenTelemetry__ServiceVersion=1.0.0-test
+      - OpenTelemetry__ConsoleExporter__Enabled=true
+      - OpenTelemetry__OtlpExporter__Enabled=false
+
+      # Logging
+      - Logging__LogLevel__Default=Information
+      - Logging__LogLevel__Microsoft.AspNetCore=Warning
+
+    depends_on:
+      postgres-test:
+        condition: service_healthy
+      redis-test:
+        condition: service_healthy
+    networks:
+      - currency-test-network
+    restart: unless-stopped
+
+  # Currency Converter Web UI (Test)
+  web-test:
+    build:
+      context: ./src/CurrencyConverter.Web
+      dockerfile: Dockerfile
+      args:
+        - VITE_API_BASE_URL=http://localhost:8082
+    container_name: currency-web-test
+    ports:
+      - "3001:80"  # Different port to avoid conflict with dev
+    depends_on:
+      - api-test
+    networks:
+      - currency-test-network
+    restart: unless-stopped
+
+volumes:
+  postgres_test_data:
+    driver: local
+  redis_test_data:
+    driver: local
+
+networks:
+  currency-test-network:
+    driver: bridge
