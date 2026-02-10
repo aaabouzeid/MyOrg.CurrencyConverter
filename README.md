@@ -230,7 +230,6 @@ docker-compose restart api
 
 ## Documentation
 
-- [Identity & Authentication](IDENTITY_AUTH.md)
 - API Documentation: Available via Swagger UI at `/swagger`
 - Docker: See Docker Deployment section above
 

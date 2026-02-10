@@ -27,8 +27,7 @@ namespace MyOrg.CurrencyConverter.API
             })
             .AddBearerToken(IdentityConstants.BearerScheme);
 
-            services.AddAuthorizationBuilder();
-
+            // Configure Identity with Roles support
             services.AddIdentityCore<ApplicationUser>(options =>
             {
                 // Password settings
@@ -41,8 +40,15 @@ namespace MyOrg.CurrencyConverter.API
                 // User settings
                 options.User.RequireUniqueEmail = true;
             })
+            .AddRoles<IdentityRole>() // Add role support
             .AddEntityFrameworkStores<ApplicationDbContext>()
             .AddApiEndpoints(); // Adds Identity API endpoints
+
+            // Configure Authorization with policies
+            services.AddAuthorizationBuilder()
+                .AddPolicy("AdminOnly", policy => policy.RequireRole("Admin"))
+                .AddPolicy("ManagerOrAdmin", policy => policy.RequireRole("Manager", "Admin"))
+                .AddPolicy("UserOrAbove", policy => policy.RequireRole("User", "Manager", "Admin"));
 
             // Configure JWT settings (keeping for reference, but Identity handles tokens)
             services.Configure<Core.Models.JwtSettings>(configuration.GetSection("JwtSettings"));

@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi;
 using MyOrg.CurrencyConverter.API.Data;
@@ -8,7 +9,7 @@ namespace MyOrg.CurrencyConverter.API
 {
     public class Program
     {
-        public static void Main(string[] args)
+        public static async Task Main(string[] args)
         {
             // Configure Serilog early (bootstrap logger)
             Log.Logger = new LoggerConfiguration()
@@ -90,6 +91,18 @@ namespace MyOrg.CurrencyConverter.API
                         var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
                         dbContext.Database.Migrate();
                         Log.Information("Database migrations applied successfully");
+
+                        // Seed roles
+                        var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
+                        await RoleSeeder.SeedRolesAsync(roleManager, app.Configuration);
+
+                        // Optionally seed default admin user
+                        var seedDefaultAdmin = app.Configuration.GetValue<bool>("SeedDefaultAdmin", false);
+                        if (seedDefaultAdmin)
+                        {
+                            var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+                            await RoleSeeder.SeedDefaultAdminAsync(userManager, app.Configuration);
+                        }
                     }
                 }
 

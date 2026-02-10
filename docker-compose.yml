@@ -48,6 +48,11 @@ services:
       # Auto-apply migrations on startup
       - AutoMigrate=true
 
+      # Seed default admin user
+      - SeedDefaultAdmin=true
+      - DefaultAdmin__Email=admin@admin.com
+      - DefaultAdmin__Password=P@ssw0rd1234
+
       # Database Configuration
       - ConnectionStrings__DefaultConnection=Host=postgres;Database=currencyconverter;Username=postgres;Password=postgres_password_change_me
 
