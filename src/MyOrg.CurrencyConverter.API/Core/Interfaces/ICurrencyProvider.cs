@@ -8,6 +8,6 @@ namespace MyOrg.CurrencyConverter.API.Core.Interfaces
 
         Task<CurrencyRates> GetExchangeRate(string baseCurrency, string targetCurrency);
 
-        Task<CurrencyHistoricalRates> GetHistoricalExchangeRates(string baseCurrency, DateTime startDate, DateTime endDate);
+        Task<(CurrencyHistoricalRates rates, int totalDays)> GetHistoricalExchangeRates(string baseCurrency, DateTime startDate, DateTime endDate, int pageNumber, int pageSize);
     }
 }

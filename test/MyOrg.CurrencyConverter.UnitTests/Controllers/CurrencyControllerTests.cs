@@ -7,6 +7,7 @@ using Moq;
 using MyOrg.CurrencyConverter.API.Controllers;
 using MyOrg.CurrencyConverter.API.Core.Models;
 using MyOrg.CurrencyConverter.API.Core.Models.Requests;
+using MyOrg.CurrencyConverter.API.Core.Models.Responses;
 using MyOrg.CurrencyConverter.API.Services;
 
 namespace MyOrg.CurrencyConverter.UnitTests.Controllers
@@ -268,28 +269,75 @@ namespace MyOrg.CurrencyConverter.UnitTests.Controllers
         #region GetHistoricalRates Tests
 
         [Fact]
-        public async Task GetHistoricalRates_ValidInputs_ReturnsOkWithHistoricalRates()
+        public async Task GetHistoricalRates_ValidInputsWithDefaultPagination_ReturnsOkWithPagedResults()
         {
             // Arrange
             var startDate = new DateTime(2024, 1, 1);
             var endDate = new DateTime(2024, 1, 31);
-            var expectedRates = new CurrencyHistoricalRates
+            var pagedResponse = new PagedHistoricalRatesResponse
             {
                 Base = "USD",
                 StartDate = "2024-01-01",
                 EndDate = "2024-01-31",
                 Rates = new Dictionary<string, Dictionary<string, decimal>>()
             };
+            var paginationMetadata = new PaginationMetadata
+            {
+                CurrentPage = 1,
+                PageSize = 10,
+                TotalCount = 31,
+                TotalPages = 4
+            };
+            var expectedResult = new PagedResult<PagedHistoricalRatesResponse>(pagedResponse, paginationMetadata);
 
             _mockService.Setup(s => s.GetHistoricalRatesAsync(It.IsAny<GetHistoricalRatesRequest>()))
-                .ReturnsAsync(expectedRates);
+                .ReturnsAsync(expectedResult);
 
             // Act
             var result = await _controller.GetHistoricalRates("USD", startDate, endDate);
 
             // Assert
             var okResult = result.Should().BeOfType<OkObjectResult>().Subject;
-            okResult.Value.Should().Be(expectedRates);
+            var pagedResult = okResult.Value.Should().BeOfType<PagedResult<PagedHistoricalRatesResponse>>().Subject;
+            pagedResult.Data.Base.Should().Be("USD");
+            pagedResult.Pagination.CurrentPage.Should().Be(1);
+            pagedResult.Pagination.PageSize.Should().Be(10);
+        }
+
+        [Fact]
+        public async Task GetHistoricalRates_WithCustomPagination_PassesParametersCorrectly()
+        {
+            // Arrange
+            var startDate = new DateTime(2024, 1, 1);
+            var endDate = new DateTime(2024, 12, 31);
+            var pagedResponse = new PagedHistoricalRatesResponse
+            {
+                Base = "USD",
+                StartDate = "2024-01-01",
+                EndDate = "2024-12-31",
+                Rates = new Dictionary<string, Dictionary<string, decimal>>()
+            };
+            var paginationMetadata = new PaginationMetadata
+            {
+                CurrentPage = 3,
+                PageSize = 20,
+                TotalCount = 366,
+                TotalPages = 19
+            };
+            var expectedResult = new PagedResult<PagedHistoricalRatesResponse>(pagedResponse, paginationMetadata);
+
+            _mockService.Setup(s => s.GetHistoricalRatesAsync(It.Is<GetHistoricalRatesRequest>(r =>
+                r.PageNumber == 3 && r.PageSize == 20)))
+                .ReturnsAsync(expectedResult);
+
+            // Act
+            var result = await _controller.GetHistoricalRates("USD", startDate, endDate, 3, 20);
+
+            // Assert
+            var okResult = result.Should().BeOfType<OkObjectResult>().Subject;
+            var pagedResult = okResult.Value.Should().BeOfType<PagedResult<PagedHistoricalRatesResponse>>().Subject;
+            pagedResult.Pagination.CurrentPage.Should().Be(3);
+            pagedResult.Pagination.PageSize.Should().Be(20);
         }
 
         [Fact]

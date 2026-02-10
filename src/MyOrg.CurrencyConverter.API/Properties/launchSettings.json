@@ -16,7 +16,8 @@
         "CurrencyProvider__FrankfurterApiBaseUrl": "https://api.frankfurter.app"
       },
       "dotnetRunMessages": true,
-      "applicationUrl": "https://localhost:7159;http://localhost:5219"
+      "applicationUrl": "https://localhost:7159;http://localhost:5219",
+      "launchUrl": "https://localhost:7159/swagger"
     },
     "Container (Dockerfile)": {
       "commandName": "Docker",

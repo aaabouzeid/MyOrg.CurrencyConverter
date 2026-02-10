@@ -2,6 +2,7 @@ using FluentValidation;
 using Microsoft.AspNetCore.Mvc;
 using MyOrg.CurrencyConverter.API.Core.Models;
 using MyOrg.CurrencyConverter.API.Core.Models.Requests;
+using MyOrg.CurrencyConverter.API.Core.Models.Responses;
 using MyOrg.CurrencyConverter.API.Services;
 
 namespace MyOrg.CurrencyConverter.API.Controllers
@@ -175,33 +176,39 @@ namespace MyOrg.CurrencyConverter.API.Controllers
         }
 
         /// <summary>
-        /// Get historical exchange rates for a base currency over a date range
+        /// Get historical exchange rates for a base currency over a date range with pagination
         /// </summary>
         /// <param name="baseCurrency">The base currency code</param>
         /// <param name="startDate">Start date (YYYY-MM-DD)</param>
         /// <param name="endDate">End date (YYYY-MM-DD)</param>
-        /// <returns>Historical exchange rates</returns>
+        /// <param name="pageNumber">Page number (default: 1)</param>
+        /// <param name="pageSize">Number of items per page (default: 10)</param>
+        /// <returns>Paginated historical exchange rates</returns>
         [HttpGet("historical")]
-        [ProducesResponseType(typeof(CurrencyHistoricalRates), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(PagedResult<PagedHistoricalRatesResponse>), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status502BadGateway)]
         [ProducesResponseType(StatusCodes.Status503ServiceUnavailable)]
         public async Task<IActionResult> GetHistoricalRates(
             [FromQuery] string baseCurrency,
             [FromQuery] DateTime startDate,
-            [FromQuery] DateTime endDate)
+            [FromQuery] DateTime endDate,
+            [FromQuery] int pageNumber = 1,
+            [FromQuery] int pageSize = 10)
         {
             try
             {
                 _logger.LogInformation(
-                    "Getting historical rates for {BaseCurrency} from {StartDate} to {EndDate}",
-                    baseCurrency, startDate, endDate);
+                    "Getting historical rates for {BaseCurrency} from {StartDate} to {EndDate} (Page: {PageNumber}, Size: {PageSize})",
+                    baseCurrency, startDate, endDate, pageNumber, pageSize);
 
                 var request = new GetHistoricalRatesRequest
                 {
                     BaseCurrency = baseCurrency,
                     StartDate = startDate,
-                    EndDate = endDate
+                    EndDate = endDate,
+                    PageNumber = pageNumber,
+                    PageSize = pageSize
                 };
                 var rates = await _exchangeService.GetHistoricalRatesAsync(request);
 

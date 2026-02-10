@@ -2,6 +2,7 @@
 using MyOrg.CurrencyConverter.API.Core.Interfaces;
 using MyOrg.CurrencyConverter.API.Core.Models;
 using MyOrg.CurrencyConverter.API.Core.Models.Requests;
+using MyOrg.CurrencyConverter.API.Core.Models.Responses;
 
 namespace MyOrg.CurrencyConverter.API.Services
 {
@@ -48,10 +49,27 @@ namespace MyOrg.CurrencyConverter.API.Services
             return await _currencyProvider.GetExchangeRate(request.From, request.To);
         }
 
-        public async Task<CurrencyHistoricalRates> GetHistoricalRatesAsync(GetHistoricalRatesRequest request)
+        public async Task<PagedResult<PagedHistoricalRatesResponse>> GetHistoricalRatesAsync(GetHistoricalRatesRequest request)
         {
             await _historicalRatesValidator.ValidateAndThrowAsync(request);
-            return await _currencyProvider.GetHistoricalExchangeRates(request.BaseCurrency, request.StartDate, request.EndDate);
+
+            // Call provider with pagination parameters
+            var (providerResult, totalDays) = await _currencyProvider.GetHistoricalExchangeRates(
+                request.BaseCurrency,
+                request.StartDate,
+                request.EndDate,
+                request.PageNumber,
+                request.PageSize);
+
+            // Build paginated response using factory method
+            var pagedResponse = PagedHistoricalRatesResponse.FromCurrencyHistoricalRates(providerResult);
+
+            // Create paged result with automatically calculated metadata
+            return PagedResult<PagedHistoricalRatesResponse>.Create(
+                pagedResponse,
+                request.PageNumber,
+                request.PageSize,
+                totalDays);
         }
     }
 }

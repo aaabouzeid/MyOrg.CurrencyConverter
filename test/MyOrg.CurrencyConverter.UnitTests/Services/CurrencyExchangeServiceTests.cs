@@ -4,6 +4,7 @@ using Moq;
 using MyOrg.CurrencyConverter.API.Core.Interfaces;
 using MyOrg.CurrencyConverter.API.Core.Models;
 using MyOrg.CurrencyConverter.API.Core.Models.Requests;
+using MyOrg.CurrencyConverter.API.Core.Models.Responses;
 using MyOrg.CurrencyConverter.API.Core.Validators;
 using MyOrg.CurrencyConverter.API.Services;
 
@@ -308,7 +309,7 @@ namespace MyOrg.CurrencyConverter.UnitTests.Services
         #region GetHistoricalRatesAsync Tests
 
         [Fact]
-        public async Task GetHistoricalRatesAsync_ValidInputs_ReturnsHistoricalRates()
+        public async Task GetHistoricalRatesAsync_ValidInputsWithDefaultPagination_ReturnsPagedResults()
         {
             // Arrange
             var startDate = new DateTime(2024, 1, 1);
@@ -318,25 +319,150 @@ namespace MyOrg.CurrencyConverter.UnitTests.Services
                 Base = "USD",
                 StartDate = startDate.ToString("yyyy-MM-dd"),
                 EndDate = endDate.ToString("yyyy-MM-dd"),
-                Rates = new Dictionary<string, Dictionary<string, decimal>>()
+                Rates = new Dictionary<string, Dictionary<string, decimal>>
+                {
+                    { "2024-01-01", new Dictionary<string, decimal> { { "EUR", 0.92m } } },
+                    { "2024-01-02", new Dictionary<string, decimal> { { "EUR", 0.93m } } }
+                }
             };
 
-            _mockProvider.Setup(p => p.GetHistoricalExchangeRates("USD", startDate, endDate))
-                .ReturnsAsync(expectedRates);
+            _mockProvider.Setup(p => p.GetHistoricalExchangeRates("USD", startDate, endDate, 1, 10))
+                .ReturnsAsync((expectedRates, 31));
 
             var request = new GetHistoricalRatesRequest
             {
                 BaseCurrency = "USD",
                 StartDate = startDate,
-                EndDate = endDate
+                EndDate = endDate,
+                PageNumber = 1,
+                PageSize = 10
             };
 
             // Act
             var result = await _service.GetHistoricalRatesAsync(request);
 
             // Assert
-            result.Should().Be(expectedRates);
-            _mockProvider.Verify(p => p.GetHistoricalExchangeRates("USD", startDate, endDate), Times.Once);
+            result.Should().NotBeNull();
+            result.Data.Should().NotBeNull();
+            result.Data.Base.Should().Be("USD");
+            result.Data.Rates.Should().HaveCount(2);
+            result.Pagination.CurrentPage.Should().Be(1);
+            result.Pagination.PageSize.Should().Be(10);
+            result.Pagination.TotalCount.Should().Be(31);
+            result.Pagination.TotalPages.Should().Be(4);
+            result.Pagination.HasNext.Should().BeTrue();
+            result.Pagination.HasPrevious.Should().BeFalse();
+            _mockProvider.Verify(p => p.GetHistoricalExchangeRates("USD", startDate, endDate, 1, 10), Times.Once);
+        }
+
+        [Fact]
+        public async Task GetHistoricalRatesAsync_CustomPagination_ReturnsCorrectPage()
+        {
+            // Arrange
+            var startDate = new DateTime(2024, 1, 1);
+            var endDate = new DateTime(2024, 12, 31);
+            var expectedRates = new CurrencyHistoricalRates
+            {
+                Base = "USD",
+                StartDate = "2024-01-21",
+                EndDate = "2024-01-40",
+                Rates = new Dictionary<string, Dictionary<string, decimal>>()
+            };
+
+            _mockProvider.Setup(p => p.GetHistoricalExchangeRates("USD", startDate, endDate, 3, 20))
+                .ReturnsAsync((expectedRates, 366));
+
+            var request = new GetHistoricalRatesRequest
+            {
+                BaseCurrency = "USD",
+                StartDate = startDate,
+                EndDate = endDate,
+                PageNumber = 3,
+                PageSize = 20
+            };
+
+            // Act
+            var result = await _service.GetHistoricalRatesAsync(request);
+
+            // Assert
+            result.Should().NotBeNull();
+            result.Pagination.CurrentPage.Should().Be(3);
+            result.Pagination.PageSize.Should().Be(20);
+            result.Pagination.TotalCount.Should().Be(366);
+            result.Pagination.TotalPages.Should().Be(19);
+            result.Pagination.HasNext.Should().BeTrue();
+            result.Pagination.HasPrevious.Should().BeTrue();
+        }
+
+        [Fact]
+        public async Task GetHistoricalRatesAsync_LastPage_HasNextShouldBeFalse()
+        {
+            // Arrange
+            var startDate = new DateTime(2024, 1, 1);
+            var endDate = new DateTime(2024, 1, 31);
+            var expectedRates = new CurrencyHistoricalRates
+            {
+                Base = "USD",
+                StartDate = "2024-01-31",
+                EndDate = "2024-01-31",
+                Rates = new Dictionary<string, Dictionary<string, decimal>>()
+            };
+
+            _mockProvider.Setup(p => p.GetHistoricalExchangeRates("USD", startDate, endDate, 4, 10))
+                .ReturnsAsync((expectedRates, 31));
+
+            var request = new GetHistoricalRatesRequest
+            {
+                BaseCurrency = "USD",
+                StartDate = startDate,
+                EndDate = endDate,
+                PageNumber = 4,
+                PageSize = 10
+            };
+
+            // Act
+            var result = await _service.GetHistoricalRatesAsync(request);
+
+            // Assert
+            result.Pagination.CurrentPage.Should().Be(4);
+            result.Pagination.TotalPages.Should().Be(4);
+            result.Pagination.HasNext.Should().BeFalse();
+            result.Pagination.HasPrevious.Should().BeTrue();
+        }
+
+        [Fact]
+        public async Task GetHistoricalRatesAsync_SinglePage_HasNextAndPreviousShouldBeFalse()
+        {
+            // Arrange
+            var startDate = new DateTime(2024, 1, 1);
+            var endDate = new DateTime(2024, 1, 5);
+            var expectedRates = new CurrencyHistoricalRates
+            {
+                Base = "USD",
+                StartDate = startDate.ToString("yyyy-MM-dd"),
+                EndDate = endDate.ToString("yyyy-MM-dd"),
+                Rates = new Dictionary<string, Dictionary<string, decimal>>()
+            };
+
+            _mockProvider.Setup(p => p.GetHistoricalExchangeRates("USD", startDate, endDate, 1, 10))
+                .ReturnsAsync((expectedRates, 5));
+
+            var request = new GetHistoricalRatesRequest
+            {
+                BaseCurrency = "USD",
+                StartDate = startDate,
+                EndDate = endDate,
+                PageNumber = 1,
+                PageSize = 10
+            };
+
+            // Act
+            var result = await _service.GetHistoricalRatesAsync(request);
+
+            // Assert
+            result.Pagination.TotalPages.Should().Be(1);
+            result.Pagination.HasNext.Should().BeFalse();
+            result.Pagination.HasPrevious.Should().BeFalse();
         }
 
         [Theory]
@@ -415,6 +541,89 @@ namespace MyOrg.CurrencyConverter.UnitTests.Services
             // Act & Assert
             var action = async () => await _service.GetHistoricalRatesAsync(request);
             await action.Should().ThrowAsync<ValidationException>();
+        }
+
+        [Theory]
+        [InlineData(0)]
+        [InlineData(-1)]
+        [InlineData(-10)]
+        public async Task GetHistoricalRatesAsync_InvalidPageNumber_ThrowsValidationException(int pageNumber)
+        {
+            // Arrange
+            var startDate = new DateTime(2024, 1, 1);
+            var endDate = new DateTime(2024, 1, 31);
+
+            var request = new GetHistoricalRatesRequest
+            {
+                BaseCurrency = "USD",
+                StartDate = startDate,
+                EndDate = endDate,
+                PageNumber = pageNumber,
+                PageSize = 10
+            };
+
+            // Act & Assert
+            var action = async () => await _service.GetHistoricalRatesAsync(request);
+            await action.Should().ThrowAsync<ValidationException>();
+        }
+
+        [Theory]
+        [InlineData(0)]
+        [InlineData(-1)]
+        [InlineData(-10)]
+        public async Task GetHistoricalRatesAsync_InvalidPageSize_ThrowsValidationException(int pageSize)
+        {
+            // Arrange
+            var startDate = new DateTime(2024, 1, 1);
+            var endDate = new DateTime(2024, 1, 31);
+
+            var request = new GetHistoricalRatesRequest
+            {
+                BaseCurrency = "USD",
+                StartDate = startDate,
+                EndDate = endDate,
+                PageNumber = 1,
+                PageSize = pageSize
+            };
+
+            // Act & Assert
+            var action = async () => await _service.GetHistoricalRatesAsync(request);
+            await action.Should().ThrowAsync<ValidationException>();
+        }
+
+        [Fact]
+        public async Task GetHistoricalRatesAsync_LargePageSize_IsValid()
+        {
+            // Arrange
+            var startDate = new DateTime(2024, 1, 1);
+            var endDate = new DateTime(2024, 12, 31);
+            var expectedRates = new CurrencyHistoricalRates
+            {
+                Base = "USD",
+                StartDate = startDate.ToString("yyyy-MM-dd"),
+                EndDate = endDate.ToString("yyyy-MM-dd"),
+                Rates = new Dictionary<string, Dictionary<string, decimal>>()
+            };
+
+            _mockProvider.Setup(p => p.GetHistoricalExchangeRates("USD", startDate, endDate, 1, 500))
+                .ReturnsAsync((expectedRates, 366));
+
+            var request = new GetHistoricalRatesRequest
+            {
+                BaseCurrency = "USD",
+                StartDate = startDate,
+                EndDate = endDate,
+                PageNumber = 1,
+                PageSize = 500
+            };
+
+            // Act
+            var result = await _service.GetHistoricalRatesAsync(request);
+
+            // Assert
+            result.Should().NotBeNull();
+            result.Pagination.PageSize.Should().Be(500);
+            result.Pagination.TotalPages.Should().Be(1);
         }
 
         #endregion
