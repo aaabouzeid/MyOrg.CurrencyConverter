@@ -9,16 +9,14 @@ namespace MyOrg.CurrencyConverter.API
     {
         public static IServiceCollection AddAppServices(IServiceCollection services, IConfiguration configuration)
         {
-            // Infrastructure
-            var frankfurterApiBaseUrl = configuration?.GetValue<string>("CurrencyProvider:FrankfurterApiBaseUrl") ?? throw new ArgumentNullException("CurrencyProvider:FrankfurterApiBaseUrl should be configured");
+            // Configure provider settings
+            services.Configure<Core.Models.CurrencyProviderSettings>(configuration.GetSection("CurrencyProviderSettings"));
 
-            services.AddHttpClient("FrankfurterApi", client =>
-            {
-                client.BaseAddress = new Uri(frankfurterApiBaseUrl);
-                client.DefaultRequestHeaders.Add("Accept", "application/json");
-            })
-            .AddPolicyHandler(GetRetryPolicy(configuration))
-            .AddPolicyHandler(GetCircuitBreakerPolicy(configuration));
+            // Infrastructure - HTTP Clients for currency providers
+            ConfigureHttpClients(services, configuration);
+
+            // Register provider factory
+            services.AddSingleton<Core.Interfaces.ICurrencyProviderFactory, Infrastructure.CurrencyProviderFactory>();
 
             // Configure cache settings
             services.Configure<Core.Models.CacheSettings>(configuration.GetSection("Cache"));
@@ -32,8 +30,12 @@ namespace MyOrg.CurrencyConverter.API
             }
             else
             {
-                // No caching - register provider directly
-                services.AddTransient<Core.Interfaces.ICurrencyProvider, Infrastructure.FrankfurterCurrencyProvider>();
+                // No caching - register provider directly from factory
+                services.AddTransient<Core.Interfaces.ICurrencyProvider>(sp =>
+                {
+                    var factory = sp.GetRequiredService<Core.Interfaces.ICurrencyProviderFactory>();
+                    return factory.CreateProvider();
+                });
             }
 
             // Read restricted currencies from configuration
@@ -52,6 +54,32 @@ namespace MyOrg.CurrencyConverter.API
             services.AddTransient<Services.ICurrencyExchangeService, Services.CurrencyExchangeService>();
 
             return services;
+        }
+
+        private static void ConfigureHttpClients(IServiceCollection services, IConfiguration configuration)
+        {
+            // Frankfurter API HttpClient
+            var frankfurterApiBaseUrl = configuration.GetValue<string>("CurrencyProviderSettings:Frankfurter:BaseUrl")
+                ?? "https://api.frankfurter.app";
+
+            services.AddHttpClient("FrankfurterApi", client =>
+            {
+                client.BaseAddress = new Uri(frankfurterApiBaseUrl);
+                client.DefaultRequestHeaders.Add("Accept", "application/json");
+            })
+            .AddPolicyHandler(GetRetryPolicy(configuration))
+            .AddPolicyHandler(GetCircuitBreakerPolicy(configuration));
+
+            // Future providers' HttpClients can be added here:
+            /*
+            services.AddHttpClient("FixerApi", client =>
+            {
+                var baseUrl = configuration.GetValue<string>("CurrencyProviderSettings:Fixer:BaseUrl");
+                client.BaseAddress = new Uri(baseUrl);
+            })
+            .AddPolicyHandler(GetRetryPolicy(configuration))
+            .AddPolicyHandler(GetCircuitBreakerPolicy(configuration));
+            */
         }
 
         private static void AddCachingServices(IServiceCollection services, IConfiguration configuration)
@@ -73,13 +101,11 @@ namespace MyOrg.CurrencyConverter.API
             // Register cache service
             services.AddSingleton<Core.Interfaces.ICacheService, Infrastructure.RedisCacheService>();
 
-            // Register inner provider (transient for HttpClient lifetime)
-            services.AddTransient<Infrastructure.FrankfurterCurrencyProvider>();
-
-            // Register decorated provider
+            // Register decorated provider using factory
             services.AddTransient<Core.Interfaces.ICurrencyProvider>(sp =>
             {
-                var innerProvider = sp.GetRequiredService<Infrastructure.FrankfurterCurrencyProvider>();
+                var factory = sp.GetRequiredService<Core.Interfaces.ICurrencyProviderFactory>();
+                var innerProvider = factory.CreateProvider(); // Use factory to create provider
                 var cacheService = sp.GetRequiredService<Core.Interfaces.ICacheService>();
                 var cacheSettings = sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<Core.Models.CacheSettings>>();
                 var logger = sp.GetRequiredService<ILogger<Infrastructure.CachedCurrencyProvider>>();
