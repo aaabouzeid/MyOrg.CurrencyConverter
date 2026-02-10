@@ -7,10 +7,11 @@ A production-ready Currency Converter API built with .NET 10, featuring JWT auth
 - 🔐 **JWT Authentication** - Secure API access with Microsoft Identity
 - 👥 **Role-Based Access Control** - Admin, Manager, and User roles with permissions
 - ⏱️ **API Rate Limiting** - Protect against abuse with configurable throttling
+- 📊 **OpenTelemetry Observability** - Distributed tracing with Client IP, User ID, and HTTP details
 - 💰 **Currency Conversion** - Real-time exchange rates from multiple providers
 - 🗄️ **PostgreSQL Database** - Persistent storage for users and data
 - ⚡ **Redis Caching** - High-performance caching layer
-- 📊 **Swagger UI** - Interactive API documentation
+- 📋 **Swagger UI** - Interactive API documentation
 - 🔄 **Resilience Policies** - Retry and circuit breaker patterns with Polly
 - 📝 **Structured Logging** - Comprehensive logging with Serilog
 - 🐳 **Docker Support** - Full containerization with Docker Compose
@@ -30,10 +31,15 @@ docker-compose logs -f api
 **That's it!** The database migrations are applied automatically on startup.
 
 **Access Points:**
-- Swagger UI: http://localhost:8080/swagger
-- API: http://localhost:8080
-- PostgreSQL: localhost:5432 (user: postgres, password: postgres_password_change_me)
-- Redis: localhost:6379
+- **Web UI**: http://localhost:3000 (React application)
+- **Swagger UI**: http://localhost:8080/swagger
+- **API**: http://localhost:8080
+- **PostgreSQL**: localhost:5432 (user: postgres, password: postgres_password_change_me)
+- **Redis**: localhost:6379
+
+**Default Login Credentials:**
+- Email: `admin@admin.com`
+- Password: `P@ssw0rd1234`
 
 **Stop Services:**
 ```bash
@@ -126,7 +132,8 @@ Key configuration sections in `appsettings.json`:
 ```
 MyOrg.CurrencyConverter/
 ├── src/
-│   └── MyOrg.CurrencyConverter.API/        # Main API project
+│   ├── MyOrg.CurrencyConverter.API/        # Main API project
+│   └── CurrencyConverter.Web/              # React TypeScript web application
 ├── test/
 │   └── MyOrg.CurrencyConverter.UnitTests/  # Unit tests
 ├── docker-compose.yml                      # Docker development setup

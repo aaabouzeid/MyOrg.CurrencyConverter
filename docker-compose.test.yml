@@ -101,6 +101,12 @@ services:
       - OpenTelemetry__ConsoleExporter__Enabled=true
       - OpenTelemetry__OtlpExporter__Enabled=false
 
+      # CORS Configuration
+      - Cors__Enabled=true
+      - Cors__AllowedOrigins__0=http://localhost:3001
+      - Cors__AllowedOrigins__1=http://web-test:80
+      - Cors__AllowedOrigins__2=http://localhost:8082
+
       # Logging
       - Logging__LogLevel__Default=Information
       - Logging__LogLevel__Microsoft.AspNetCore=Warning

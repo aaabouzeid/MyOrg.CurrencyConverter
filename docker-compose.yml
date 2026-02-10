@@ -92,7 +92,7 @@ services:
       - RateLimiting__WindowSeconds=60
 
       # OpenTelemetry
-      - OpenTelemetry__Enabled=true
+      - OpenTelemetry__Enabled=false
       - OpenTelemetry__ServiceName=CurrencyConverter.API
       - OpenTelemetry__ServiceVersion=1.0.0
       - OpenTelemetry__ConsoleExporter__Enabled=true
