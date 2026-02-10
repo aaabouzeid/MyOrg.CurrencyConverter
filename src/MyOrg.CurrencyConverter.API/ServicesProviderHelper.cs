@@ -1,6 +1,7 @@
 ﻿using FluentValidation;
 using Polly;
 using Polly.Extensions.Http;
+using StackExchange.Redis;
 
 namespace MyOrg.CurrencyConverter.API
 {
@@ -19,8 +20,21 @@ namespace MyOrg.CurrencyConverter.API
             .AddPolicyHandler(GetRetryPolicy(configuration))
             .AddPolicyHandler(GetCircuitBreakerPolicy(configuration));
 
-            services.AddTransient<Infrastructure.FrankfurterCurrencyProvider>();
-            services.AddTransient<Core.Interfaces.ICurrencyProvider>(sp => sp.GetRequiredService<Infrastructure.FrankfurterCurrencyProvider>());
+            // Configure cache settings
+            services.Configure<Core.Models.CacheSettings>(configuration.GetSection("Cache"));
+
+            // Conditional registration based on Cache:Enabled flag
+            var cacheEnabled = configuration.GetValue<bool?>("Cache:Enabled") ?? false;
+
+            if (cacheEnabled)
+            {
+                AddCachingServices(services, configuration);
+            }
+            else
+            {
+                // No caching - register provider directly
+                services.AddTransient<Core.Interfaces.ICurrencyProvider, Infrastructure.FrankfurterCurrencyProvider>();
+            }
 
             // Read restricted currencies from configuration
             var restrictedCurrencies = configuration
@@ -38,6 +52,40 @@ namespace MyOrg.CurrencyConverter.API
             services.AddTransient<Services.ICurrencyExchangeService, Services.CurrencyExchangeService>();
 
             return services;
+        }
+
+        private static void AddCachingServices(IServiceCollection services, IConfiguration configuration)
+        {
+            var connectionString = configuration.GetValue<string>("Cache:ConnectionString")
+                ?? throw new InvalidOperationException("Cache:ConnectionString is required when caching is enabled");
+
+            // Register Redis ConnectionMultiplexer as singleton (StackExchange.Redis best practice)
+            services.AddSingleton<IConnectionMultiplexer>(sp =>
+            {
+                var options = ConfigurationOptions.Parse(connectionString);
+                options.AbortOnConnectFail = false; // Allow app to start even if Redis is down
+                options.ConnectTimeout = 5000;
+                options.SyncTimeout = 5000;
+
+                return ConnectionMultiplexer.Connect(options);
+            });
+
+            // Register cache service
+            services.AddSingleton<Core.Interfaces.ICacheService, Infrastructure.RedisCacheService>();
+
+            // Register inner provider (transient for HttpClient lifetime)
+            services.AddTransient<Infrastructure.FrankfurterCurrencyProvider>();
+
+            // Register decorated provider
+            services.AddTransient<Core.Interfaces.ICurrencyProvider>(sp =>
+            {
+                var innerProvider = sp.GetRequiredService<Infrastructure.FrankfurterCurrencyProvider>();
+                var cacheService = sp.GetRequiredService<Core.Interfaces.ICacheService>();
+                var cacheSettings = sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<Core.Models.CacheSettings>>();
+                var logger = sp.GetRequiredService<ILogger<Infrastructure.CachedCurrencyProvider>>();
+
+                return new Infrastructure.CachedCurrencyProvider(innerProvider, cacheService, cacheSettings, logger);
+            });
         }
 
         private static IAsyncPolicy<HttpResponseMessage> GetRetryPolicy(IConfiguration configuration)
