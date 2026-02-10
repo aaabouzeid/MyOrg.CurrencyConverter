@@ -127,7 +127,8 @@ namespace MyOrg.CurrencyConverter.API
                     sleepDurationProvider: retryAttempt => TimeSpan.FromSeconds(Math.Pow(2, retryAttempt)),
                     onRetry: (outcome, timespan, retryCount, context) =>
                     {
-                        Console.WriteLine($"Retry {retryCount} after {timespan.TotalSeconds}s delay due to {outcome.Result?.StatusCode}");
+                        Serilog.Log.Warning("HTTP Retry {RetryCount} after {DelaySeconds:0.00}s delay due to {StatusCode}",
+                            retryCount, timespan.TotalSeconds, outcome.Result?.StatusCode);
                     });
         }
 
@@ -144,11 +145,12 @@ namespace MyOrg.CurrencyConverter.API
                     durationOfBreak: TimeSpan.FromSeconds(durationOfBreakInSeconds),
                     onBreak: (outcome, breakDelay) =>
                     {
-                        Console.WriteLine($"Circuit breaker opened for {breakDelay.TotalSeconds}s due to {outcome.Result?.StatusCode}");
+                        Serilog.Log.Error("Circuit breaker opened for {DurationSeconds:0.00}s due to {StatusCode}",
+                            breakDelay.TotalSeconds, outcome.Result?.StatusCode);
                     },
                     onReset: () =>
                     {
-                        Console.WriteLine("Circuit breaker reset");
+                        Serilog.Log.Information("Circuit breaker reset");
                     });
         }
     }
